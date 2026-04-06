@@ -63,7 +63,8 @@ export const deriveServerPaths = Effect.fn(function* (
   devUrl: ServerConfigShape["devUrl"],
 ): Effect.fn.Return<ServerDerivedPaths, never, Path.Path> {
   const { join } = yield* Path.Path;
-  const stateDir = join(baseDir, devUrl !== undefined ? "dev" : "userdata");
+  const stateDirOverride = process.env.T3CODE_STATE_DIR?.trim() || undefined;
+  const stateDir = stateDirOverride ?? join(baseDir, devUrl !== undefined ? "dev" : "userdata");
   const dbPath = join(stateDir, "state.sqlite");
   const attachmentsDir = join(stateDir, "attachments");
   const logsDir = join(stateDir, "logs");

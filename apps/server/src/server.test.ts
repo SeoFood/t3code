@@ -385,6 +385,7 @@ const buildAppUnderTest = (options?: {
           getReadModel: () => Effect.succeed(makeDefaultOrchestrationReadModel()),
           readEvents: () => Stream.empty,
           dispatch: () => Effect.succeed({ sequence: 0 }),
+          refreshFromDb: () => Effect.void,
           streamDomainEvents: Stream.empty,
           ...options?.layers?.orchestrationEngine,
         }),

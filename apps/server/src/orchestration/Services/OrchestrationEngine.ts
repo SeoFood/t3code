@@ -56,6 +56,12 @@ export interface OrchestrationEngineShape {
   ) => Effect.Effect<{ sequence: number }, OrchestrationDispatchError, never>;
 
   /**
+   * Refresh the in-memory read model from the database.
+   * Picks up changes made by other server processes sharing the same SQLite.
+   */
+  readonly refreshFromDb: () => Effect.Effect<void, never, never>;
+
+  /**
    * Stream persisted domain events in dispatch order.
    *
    * This is a hot runtime stream (new events only), not a historical replay.

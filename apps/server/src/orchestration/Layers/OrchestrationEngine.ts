@@ -278,6 +278,22 @@ const makeOrchestrationEngine = Effect.gen(function* () {
     Effect.annotateLogs({ sequence: readModel.snapshotSequence }),
   );
 
+  // Refresh the read model from the database to pick up external changes
+  // (e.g. another server sharing the same SQLite).
+  const refreshFromDb = Effect.gen(function* () {
+    yield* projectionPipeline.bootstrap;
+    const previous = readModel.snapshotSequence;
+    readModel = yield* projectionSnapshotQuery.getSnapshot();
+    if (readModel.snapshotSequence !== previous) {
+      yield* Effect.logDebug("read model refreshed from external DB changes").pipe(
+        Effect.annotateLogs({
+          previousSequence: previous,
+          newSequence: readModel.snapshotSequence,
+        }),
+      );
+    }
+  }).pipe(Effect.catch(() => Effect.void));
+
   const getReadModel: OrchestrationEngineShape["getReadModel"] = () =>
     Effect.sync((): OrchestrationReadModel => readModel);
 
@@ -295,6 +311,7 @@ const makeOrchestrationEngine = Effect.gen(function* () {
     getReadModel,
     readEvents,
     dispatch,
+    refreshFromDb: () => refreshFromDb,
     // Each access creates a fresh PubSub subscription so that multiple
     // consumers (wsServer, ProviderRuntimeIngestion, CheckpointReactor, etc.)
     // each independently receive all domain events.

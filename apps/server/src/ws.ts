@@ -463,6 +463,8 @@ const WsRpcLayer = WsRpcGroup.toLayer(
         observeRpcStreamEffect(
           WS_METHODS.subscribeOrchestrationDomainEvents,
           Effect.gen(function* () {
+            // Pick up changes from other processes sharing the same SQLite.
+            yield* orchestrationEngine.refreshFromDb();
             const snapshot = yield* orchestrationEngine.getReadModel();
             const fromSequenceExclusive = snapshot.snapshotSequence;
             const replayEvents: Array<OrchestrationEvent> = yield* Stream.runCollect(
