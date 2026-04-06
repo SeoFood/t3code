@@ -17,13 +17,19 @@ import {
   syncServerReadModel,
   type AppState,
 } from "./store";
-import { DEFAULT_INTERACTION_MODE, DEFAULT_RUNTIME_MODE, type Thread } from "./types";
+import {
+  DEFAULT_INTERACTION_MODE,
+  DEFAULT_RUNTIME_MODE,
+  LOCAL_SERVER_ID,
+  type Thread,
+} from "./types";
 
 function makeThread(overrides: Partial<Thread> = {}): Thread {
   return {
     id: ThreadId.makeUnsafe("thread-1"),
     codexThreadId: null,
     projectId: ProjectId.makeUnsafe("project-1"),
+    serverId: LOCAL_SERVER_ID,
     title: "Thread",
     modelSelection: {
       provider: "codex",
@@ -54,6 +60,7 @@ function makeState(thread: Thread): AppState {
     projects: [
       {
         id: ProjectId.makeUnsafe("project-1"),
+        serverId: LOCAL_SERVER_ID,
         name: "Project",
         cwd: "/tmp/project",
         defaultModelSelection: {
@@ -256,6 +263,7 @@ describe("store read model sync", () => {
       projects: [
         {
           id: project2,
+          serverId: LOCAL_SERVER_ID,
           name: "Project 2",
           cwd: "/tmp/project-2",
           defaultModelSelection: {
@@ -266,6 +274,7 @@ describe("store read model sync", () => {
         },
         {
           id: project1,
+          serverId: LOCAL_SERVER_ID,
           name: "Project 1",
           cwd: "/tmp/project-1",
           defaultModelSelection: {
@@ -358,6 +367,7 @@ describe("incremental orchestration updates", () => {
       projects: [
         {
           id: originalProjectId,
+          serverId: LOCAL_SERVER_ID,
           name: "Project",
           cwd: "/tmp/project",
           defaultModelSelection: {
@@ -407,6 +417,7 @@ describe("incremental orchestration updates", () => {
       projects: [
         {
           id: originalProjectId,
+          serverId: LOCAL_SERVER_ID,
           name: "Project 1",
           cwd: "/tmp/project-1",
           defaultModelSelection: {
@@ -417,6 +428,7 @@ describe("incremental orchestration updates", () => {
         },
         {
           id: recreatedProjectId,
+          serverId: LOCAL_SERVER_ID,
           name: "Project 2",
           cwd: "/tmp/project-2",
           defaultModelSelection: {

@@ -24,6 +24,7 @@ import { OrchestrationLatestTurn, ProjectId, ThreadId } from "@t3tools/contracts
 import {
   DEFAULT_INTERACTION_MODE,
   DEFAULT_RUNTIME_MODE,
+  LOCAL_SERVER_ID,
   type Project,
   type Thread,
 } from "../types";
@@ -625,6 +626,7 @@ function makeProject(overrides: Partial<Project> = {}): Project {
   const { defaultModelSelection, ...rest } = overrides;
   return {
     id: ProjectId.makeUnsafe("project-1"),
+    serverId: LOCAL_SERVER_ID,
     name: "Project",
     cwd: "/tmp/project",
     defaultModelSelection: {
@@ -644,6 +646,7 @@ function makeThread(overrides: Partial<Thread> = {}): Thread {
     id: ThreadId.makeUnsafe("thread-1"),
     codexThreadId: null,
     projectId: ProjectId.makeUnsafe("project-1"),
+    serverId: LOCAL_SERVER_ID,
     title: "Thread",
     modelSelection: {
       provider: "codex",

@@ -10,6 +10,8 @@ import {
   type OrchestrationCheckpointSummary,
   type OrchestrationThread,
   type OrchestrationSessionStatus,
+  type ServerId,
+  LOCAL_SERVER_ID,
 } from "@t3tools/contracts";
 import { resolveModelSlugForProvider } from "@t3tools/shared/model";
 import { create } from "zustand";
@@ -154,11 +156,12 @@ function mapTurnDiffSummary(
   };
 }
 
-function mapThread(thread: OrchestrationThread): Thread {
+function mapThread(thread: OrchestrationThread, serverId: ServerId = LOCAL_SERVER_ID): Thread {
   return {
     id: thread.id,
     codexThreadId: null,
     projectId: thread.projectId,
+    serverId,
     title: thread.title,
     modelSelection: normalizeModelSelection(thread.modelSelection),
     runtimeMode: thread.runtimeMode,
@@ -179,9 +182,13 @@ function mapThread(thread: OrchestrationThread): Thread {
   };
 }
 
-function mapProject(project: OrchestrationReadModel["projects"][number]): Project {
+function mapProject(
+  project: OrchestrationReadModel["projects"][number],
+  serverId: ServerId = LOCAL_SERVER_ID,
+): Project {
   return {
     id: project.id,
+    serverId,
     name: project.title,
     cwd: project.workspaceRoot,
     defaultModelSelection: project.defaultModelSelection
@@ -214,6 +221,7 @@ function buildSidebarThreadSummary(thread: Thread): SidebarThreadSummary {
   return {
     id: thread.id,
     projectId: thread.projectId,
+    serverId: thread.serverId,
     title: thread.title,
     interactionMode: thread.interactionMode,
     session: thread.session,
@@ -240,6 +248,7 @@ function sidebarThreadSummariesEqual(
     left !== undefined &&
     left.id === right.id &&
     left.projectId === right.projectId &&
+    left.serverId === right.serverId &&
     left.title === right.title &&
     left.interactionMode === right.interactionMode &&
     left.session === right.session &&
@@ -574,13 +583,27 @@ function updateThreadState(
 
 // ── Pure state transition functions ────────────────────────────────────
 
-export function syncServerReadModel(state: AppState, readModel: OrchestrationReadModel): AppState {
-  const projects = readModel.projects
+export function syncServerReadModel(
+  state: AppState,
+  readModel: OrchestrationReadModel,
+  serverId: ServerId = LOCAL_SERVER_ID,
+): AppState {
+  const newProjects = readModel.projects
     .filter((project) => project.deletedAt === null)
-    .map(mapProject);
-  const threads = readModel.threads.filter((thread) => thread.deletedAt === null).map(mapThread);
+    .map((p) => mapProject(p, serverId));
+  const newThreads = readModel.threads
+    .filter((thread) => thread.deletedAt === null)
+    .map((t) => mapThread(t, serverId));
+
+  // Remove old data for this server, then merge new
+  const otherProjects = state.projects.filter((p) => p.serverId !== serverId);
+  const otherThreads = state.threads.filter((t) => t.serverId !== serverId);
+
+  const projects = [...otherProjects, ...newProjects];
+  const threads = [...otherThreads, ...newThreads];
   const sidebarThreadsById = buildSidebarThreadsById(threads);
   const threadIdsByProjectId = buildThreadIdsByProjectId(threads);
+
   return {
     ...state,
     projects,
@@ -591,23 +614,30 @@ export function syncServerReadModel(state: AppState, readModel: OrchestrationRea
   };
 }
 
-export function applyOrchestrationEvent(state: AppState, event: OrchestrationEvent): AppState {
+export function applyOrchestrationEvent(
+  state: AppState,
+  event: OrchestrationEvent,
+  serverId: ServerId = LOCAL_SERVER_ID,
+): AppState {
   switch (event.type) {
     case "project.created": {
       const existingIndex = state.projects.findIndex(
         (project) =>
           project.id === event.payload.projectId || project.cwd === event.payload.workspaceRoot,
       );
-      const nextProject = mapProject({
-        id: event.payload.projectId,
-        title: event.payload.title,
-        workspaceRoot: event.payload.workspaceRoot,
-        defaultModelSelection: event.payload.defaultModelSelection,
-        scripts: event.payload.scripts,
-        createdAt: event.payload.createdAt,
-        updatedAt: event.payload.updatedAt,
-        deletedAt: null,
-      });
+      const nextProject = mapProject(
+        {
+          id: event.payload.projectId,
+          title: event.payload.title,
+          workspaceRoot: event.payload.workspaceRoot,
+          defaultModelSelection: event.payload.defaultModelSelection,
+          scripts: event.payload.scripts,
+          createdAt: event.payload.createdAt,
+          updatedAt: event.payload.updatedAt,
+          deletedAt: null,
+        },
+        serverId,
+      );
       const projects =
         existingIndex >= 0
           ? state.projects.map((project, index) =>
@@ -644,26 +674,29 @@ export function applyOrchestrationEvent(state: AppState, event: OrchestrationEve
 
     case "thread.created": {
       const existing = state.threads.find((thread) => thread.id === event.payload.threadId);
-      const nextThread = mapThread({
-        id: event.payload.threadId,
-        projectId: event.payload.projectId,
-        title: event.payload.title,
-        modelSelection: event.payload.modelSelection,
-        runtimeMode: event.payload.runtimeMode,
-        interactionMode: event.payload.interactionMode,
-        branch: event.payload.branch,
-        worktreePath: event.payload.worktreePath,
-        latestTurn: null,
-        createdAt: event.payload.createdAt,
-        updatedAt: event.payload.updatedAt,
-        archivedAt: null,
-        deletedAt: null,
-        messages: [],
-        proposedPlans: [],
-        activities: [],
-        checkpoints: [],
-        session: null,
-      });
+      const nextThread = mapThread(
+        {
+          id: event.payload.threadId,
+          projectId: event.payload.projectId,
+          title: event.payload.title,
+          modelSelection: event.payload.modelSelection,
+          runtimeMode: event.payload.runtimeMode,
+          interactionMode: event.payload.interactionMode,
+          branch: event.payload.branch,
+          worktreePath: event.payload.worktreePath,
+          latestTurn: null,
+          createdAt: event.payload.createdAt,
+          updatedAt: event.payload.updatedAt,
+          archivedAt: null,
+          deletedAt: null,
+          messages: [],
+          proposedPlans: [],
+          activities: [],
+          checkpoints: [],
+          session: null,
+        },
+        serverId,
+      );
       const threads = existing
         ? state.threads.map((thread) => (thread.id === nextThread.id ? nextThread : thread))
         : [...state.threads, nextThread];
@@ -1088,11 +1121,15 @@ export function applyOrchestrationEvent(state: AppState, event: OrchestrationEve
 export function applyOrchestrationEvents(
   state: AppState,
   events: ReadonlyArray<OrchestrationEvent>,
+  serverId: ServerId = LOCAL_SERVER_ID,
 ): AppState {
   if (events.length === 0) {
     return state;
   }
-  return events.reduce((nextState, event) => applyOrchestrationEvent(nextState, event), state);
+  return events.reduce(
+    (nextState, event) => applyOrchestrationEvent(nextState, event, serverId),
+    state,
+  );
 }
 
 export const selectProjectById =
@@ -1143,18 +1180,24 @@ export function setThreadBranch(
 // ── Zustand store ────────────────────────────────────────────────────
 
 interface AppStore extends AppState {
-  syncServerReadModel: (readModel: OrchestrationReadModel) => void;
-  applyOrchestrationEvent: (event: OrchestrationEvent) => void;
-  applyOrchestrationEvents: (events: ReadonlyArray<OrchestrationEvent>) => void;
+  syncServerReadModel: (readModel: OrchestrationReadModel, serverId?: ServerId) => void;
+  applyOrchestrationEvent: (event: OrchestrationEvent, serverId?: ServerId) => void;
+  applyOrchestrationEvents: (
+    events: ReadonlyArray<OrchestrationEvent>,
+    serverId?: ServerId,
+  ) => void;
   setError: (threadId: ThreadId, error: string | null) => void;
   setThreadBranch: (threadId: ThreadId, branch: string | null, worktreePath: string | null) => void;
 }
 
 export const useStore = create<AppStore>((set) => ({
   ...initialState,
-  syncServerReadModel: (readModel) => set((state) => syncServerReadModel(state, readModel)),
-  applyOrchestrationEvent: (event) => set((state) => applyOrchestrationEvent(state, event)),
-  applyOrchestrationEvents: (events) => set((state) => applyOrchestrationEvents(state, events)),
+  syncServerReadModel: (readModel, serverId) =>
+    set((state) => syncServerReadModel(state, readModel, serverId)),
+  applyOrchestrationEvent: (event, serverId) =>
+    set((state) => applyOrchestrationEvent(state, event, serverId)),
+  applyOrchestrationEvents: (events, serverId) =>
+    set((state) => applyOrchestrationEvents(state, events, serverId)),
   setError: (threadId, error) => set((state) => setError(state, threadId, error)),
   setThreadBranch: (threadId, branch, worktreePath) =>
     set((state) => setThreadBranch(state, threadId, branch, worktreePath)),

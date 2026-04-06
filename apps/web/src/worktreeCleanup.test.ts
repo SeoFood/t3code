@@ -1,7 +1,12 @@
 import { ProjectId, ThreadId } from "@t3tools/contracts";
 import { describe, expect, it } from "vitest";
 
-import { DEFAULT_INTERACTION_MODE, DEFAULT_RUNTIME_MODE, type Thread } from "./types";
+import {
+  DEFAULT_INTERACTION_MODE,
+  DEFAULT_RUNTIME_MODE,
+  LOCAL_SERVER_ID,
+  type Thread,
+} from "./types";
 import { formatWorktreePathForDisplay, getOrphanedWorktreePathForThread } from "./worktreeCleanup";
 
 function makeThread(overrides: Partial<Thread> = {}): Thread {
@@ -9,6 +14,7 @@ function makeThread(overrides: Partial<Thread> = {}): Thread {
     id: ThreadId.makeUnsafe("thread-1"),
     codexThreadId: null,
     projectId: ProjectId.makeUnsafe("project-1"),
+    serverId: LOCAL_SERVER_ID,
     title: "Thread",
     modelSelection: {
       provider: "codex",

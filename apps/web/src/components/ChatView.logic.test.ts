@@ -1,4 +1,4 @@
-import { ProjectId, ThreadId, TurnId } from "@t3tools/contracts";
+import { LOCAL_SERVER_ID, ProjectId, ThreadId, TurnId } from "@t3tools/contracts";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useStore } from "../store";
 
@@ -182,6 +182,7 @@ const makeThread = (input?: {
   id: input?.id ?? ThreadId.makeUnsafe("thread-1"),
   codexThreadId: null,
   projectId: ProjectId.makeUnsafe("project-1"),
+  serverId: LOCAL_SERVER_ID,
   title: "Thread",
   modelSelection: { provider: "codex" as const, model: "gpt-5.4" },
   runtimeMode: "full-access" as const,
@@ -340,6 +341,7 @@ describe("hasServerAcknowledgedLocalDispatch", () => {
       id: ThreadId.makeUnsafe("thread-1"),
       codexThreadId: null,
       projectId,
+      serverId: LOCAL_SERVER_ID,
       title: "Thread",
       modelSelection: { provider: "codex", model: "gpt-5.4" },
       runtimeMode: "full-access",
@@ -376,6 +378,7 @@ describe("hasServerAcknowledgedLocalDispatch", () => {
       id: ThreadId.makeUnsafe("thread-1"),
       codexThreadId: null,
       projectId,
+      serverId: LOCAL_SERVER_ID,
       title: "Thread",
       modelSelection: { provider: "codex", model: "gpt-5.4" },
       runtimeMode: "full-access",
@@ -421,6 +424,7 @@ describe("hasServerAcknowledgedLocalDispatch", () => {
       id: ThreadId.makeUnsafe("thread-1"),
       codexThreadId: null,
       projectId,
+      serverId: LOCAL_SERVER_ID,
       title: "Thread",
       modelSelection: { provider: "codex", model: "gpt-5.4" },
       runtimeMode: "full-access",

@@ -13,7 +13,10 @@ import type {
   CheckpointRef,
   ProviderInteractionMode,
   RuntimeMode,
+  ServerId,
 } from "@t3tools/contracts";
+
+export { LOCAL_SERVER_ID } from "@t3tools/contracts";
 
 export type SessionPhase = "disconnected" | "connecting" | "ready" | "running";
 export const DEFAULT_RUNTIME_MODE: RuntimeMode = "full-access";
@@ -80,6 +83,7 @@ export interface TurnDiffSummary {
 
 export interface Project {
   id: ProjectId;
+  serverId: ServerId;
   name: string;
   cwd: string;
   defaultModelSelection: ModelSelection | null;
@@ -92,6 +96,7 @@ export interface Thread {
   id: ThreadId;
   codexThreadId: string | null;
   projectId: ProjectId;
+  serverId: ServerId;
   title: string;
   modelSelection: ModelSelection;
   runtimeMode: RuntimeMode;
@@ -114,6 +119,7 @@ export interface Thread {
 export interface SidebarThreadSummary {
   id: ThreadId;
   projectId: ProjectId;
+  serverId: ServerId;
   title: string;
   interactionMode: ProviderInteractionMode;
   session: ThreadSession | null;

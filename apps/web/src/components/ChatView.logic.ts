@@ -1,5 +1,11 @@
 import { ProjectId, type ModelSelection, type ThreadId, type TurnId } from "@t3tools/contracts";
-import { type ChatMessage, type SessionPhase, type Thread, type ThreadSession } from "../types";
+import {
+  type ChatMessage,
+  LOCAL_SERVER_ID,
+  type SessionPhase,
+  type Thread,
+  type ThreadSession,
+} from "../types";
 import { randomUUID } from "~/lib/utils";
 import { type ComposerImageAttachment, type DraftThreadState } from "../composerDraftStore";
 import { Schema } from "effect";
@@ -26,6 +32,7 @@ export function buildLocalDraftThread(
     id: threadId,
     codexThreadId: null,
     projectId: draftThread.projectId,
+    serverId: LOCAL_SERVER_ID,
     title: "New thread",
     modelSelection: fallbackModelSelection,
     runtimeMode: draftThread.runtimeMode,
