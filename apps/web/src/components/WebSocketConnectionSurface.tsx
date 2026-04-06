@@ -1,19 +1,22 @@
 import { AlertTriangle, CloudOff, LoaderCircle, RotateCw } from "lucide-react";
-import { type ReactNode, useEffect, useEffectEvent, useRef, useState } from "react";
+import { type ReactNode, useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 
 import { APP_DISPLAY_NAME } from "../branding";
 import { type SlowRpcAckRequest, useSlowRpcAckRequests } from "../rpc/requestLatencyState";
+import { serverConnectionRegistry } from "../rpc/serverConnectionRegistry";
 import { useServerConfig } from "../rpc/serverState";
 import {
   exhaustWsReconnectIfStillWaiting,
+  getOrCreateServerConnectionStatusAtom,
   getWsConnectionStatus,
   getWsConnectionUiState,
-  setBrowserOnlineStatus,
   type WsConnectionStatus,
   type WsConnectionUiState,
   useWsConnectionStatus,
+  setBrowserOnlineStatus,
   WS_RECONNECT_MAX_ATTEMPTS,
 } from "../rpc/wsConnectionState";
+import { appAtomRegistry } from "../rpc/atomRegistry";
 import { Button } from "./ui/button";
 import { toastManager } from "./ui/toast";
 import { getWsRpcClient } from "~/wsRpcClient";
@@ -522,6 +525,110 @@ export function SlowRpcAckToastCoordinator() {
       toastIdRef.current = toastManager.add(nextToast);
     }
   }, [slowRequests, status]);
+
+  return null;
+}
+
+/**
+ * Monitors remote server connection status and shows/dismisses toast
+ * notifications when remote servers go offline or come back online.
+ */
+export function RemoteServerConnectionMonitor() {
+  const serverConfig = useServerConfig();
+  const remoteServers = useMemo(
+    () => serverConfig?.settings.remoteServers ?? [],
+    [serverConfig?.settings.remoteServers],
+  );
+  const toastIdsRef = useRef<Map<string, ReturnType<typeof toastManager.add>>>(new Map());
+  const previousConnectedRef = useRef<Map<string, boolean>>(new Map());
+
+  useEffect(() => {
+    if (remoteServers.length === 0) return;
+
+    const toastIds = toastIdsRef.current;
+    const previousConnected = previousConnectedRef.current;
+    const cleanups: Array<() => void> = [];
+    const currentServerIds = new Set(remoteServers.map((s) => String(s.id)));
+
+    // Clean up toasts for servers that were removed from config
+    for (const [serverId, toastId] of toastIds) {
+      if (!currentServerIds.has(serverId)) {
+        toastManager.close(toastId);
+        toastIds.delete(serverId);
+        previousConnected.delete(serverId);
+      }
+    }
+
+    for (const server of remoteServers) {
+      const atom = getOrCreateServerConnectionStatusAtom(server.id);
+      const serverKey = String(server.id);
+
+      const unsub = appAtomRegistry.subscribe(atom, (status) => {
+        const uiState = getWsConnectionUiState(status);
+        const isConnected = uiState === "connected";
+        const wasConnected = previousConnected.get(serverKey);
+
+        // Only act on state transitions (or initial offline detection after first connect)
+        if (wasConnected === isConnected) return;
+        previousConnected.set(serverKey, isConnected);
+
+        const existingToastId = toastIds.get(serverKey);
+
+        if (!isConnected && serverConnectionRegistry.isConnected(server.id)) {
+          // Server was connected but connection dropped - show warning toast
+          const toastPayload = {
+            type: "warning" as const,
+            title: `${server.name}: Disconnected`,
+            description: "Remote server connection lost. Reconnecting in background.",
+            timeout: 0,
+            data: { hideCopyButton: true },
+          };
+
+          if (existingToastId) {
+            toastManager.update(existingToastId, toastPayload);
+          } else {
+            toastIds.set(serverKey, toastManager.add(toastPayload));
+          }
+        } else if (isConnected && existingToastId) {
+          // Server reconnected - show brief success then dismiss
+          toastManager.update(existingToastId, {
+            type: "success" as const,
+            title: `${server.name}: Reconnected`,
+            description: "Remote server connection restored.",
+            timeout: 0,
+            data: { dismissAfterVisibleMs: 5_000, hideCopyButton: true },
+          });
+
+          // Clear the tracked toast id after a delay
+          const key = serverKey;
+          const timerId = window.setTimeout(() => {
+            toastIds.delete(key);
+          }, 5_500);
+
+          cleanups.push(() => window.clearTimeout(timerId));
+        }
+      });
+
+      cleanups.push(unsub);
+    }
+
+    return () => {
+      for (const cleanup of cleanups) {
+        cleanup();
+      }
+    };
+  }, [remoteServers]);
+
+  // Cleanup all toasts on unmount
+  useEffect(() => {
+    const toastIds = toastIdsRef.current;
+    return () => {
+      for (const toastId of toastIds.values()) {
+        toastManager.close(toastId);
+      }
+      toastIds.clear();
+    };
+  }, []);
 
   return null;
 }
