@@ -2,9 +2,10 @@ import { type ContextMenuItem, type NativeApi } from "@t3tools/contracts";
 
 import { showContextMenuFallback } from "./contextMenuFallback";
 import { resetRequestLatencyStateForTests } from "./rpc/requestLatencyState";
+import { serverConnectionRegistry } from "./rpc/serverConnectionRegistry";
 import { resetServerStateForTests } from "./rpc/serverState";
 import { resetWsConnectionStateForTests } from "./rpc/wsConnectionState";
-import { __resetWsRpcClientForTests, getWsRpcClient } from "./wsRpcClient";
+import { __resetWsRpcClientForTests } from "./wsRpcClient";
 
 let instance: { api: NativeApi } | null = null;
 
@@ -21,7 +22,7 @@ export function createWsNativeApi(): NativeApi {
     return instance.api;
   }
 
-  const rpcClient = getWsRpcClient();
+  const rpcClient = serverConnectionRegistry.connectLocal();
 
   const api: NativeApi = {
     dialogs: {

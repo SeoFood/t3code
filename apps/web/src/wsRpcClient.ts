@@ -10,6 +10,7 @@ import {
 import { Effect, Stream } from "effect";
 
 import { type WsRpcProtocolClient } from "./rpc/protocol";
+import { serverConnectionRegistry } from "./rpc/serverConnectionRegistry";
 import { resetWsReconnectBackoff } from "./rpc/wsConnectionState";
 import { WsTransport } from "./wsTransport";
 
@@ -107,19 +108,12 @@ export interface WsRpcClient {
   };
 }
 
-let sharedWsRpcClient: WsRpcClient | null = null;
-
 export function getWsRpcClient(): WsRpcClient {
-  if (sharedWsRpcClient) {
-    return sharedWsRpcClient;
-  }
-  sharedWsRpcClient = createWsRpcClient();
-  return sharedWsRpcClient;
+  return serverConnectionRegistry.connectLocal();
 }
 
 export async function __resetWsRpcClientForTests() {
-  await sharedWsRpcClient?.dispose();
-  sharedWsRpcClient = null;
+  await serverConnectionRegistry.disposeAll();
 }
 
 export function createWsRpcClient(transport = new WsTransport()): WsRpcClient {

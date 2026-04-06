@@ -48,6 +48,7 @@ import { collectActiveTerminalThreadIds } from "../lib/terminalStateCleanup";
 import { deriveOrchestrationBatchEffects } from "../orchestrationEventEffects";
 import { createOrchestrationRecoveryCoordinator } from "../orchestrationRecovery";
 import { deriveReplayRetryDecision } from "../orchestrationRecovery";
+import { serverConnectionRegistry } from "../rpc/serverConnectionRegistry";
 import { applySpotlightEvent } from "../rpc/spotlightState";
 import { getWsRpcClient } from "~/wsRpcClient";
 
@@ -589,6 +590,39 @@ function EventRouter() {
     syncServerReadModel,
     syncThreads,
   ]);
+
+  useEffect(() => {
+    const remoteServers = serverConfig?.settings.remoteServers ?? [];
+    const cleanups: (() => void)[] = [];
+
+    for (const server of remoteServers) {
+      if (serverConnectionRegistry.isConnected(server.id)) continue;
+
+      const client = serverConnectionRegistry.connectRemote(server);
+
+      // Bootstrap: get snapshot and sync
+      void client.orchestration
+        .getSnapshot()
+        .then((snapshot) => {
+          syncServerReadModel(snapshot, server.id);
+        })
+        .catch((error) => {
+          console.warn(`[multi-server] Failed to bootstrap ${server.name}:`, error);
+        });
+
+      // Subscribe to domain events from remote server
+      const unsub = client.orchestration.onDomainEvent((event) => {
+        applyOrchestrationEvents([event], server.id);
+      });
+      cleanups.push(unsub);
+    }
+
+    return () => {
+      for (const cleanup of cleanups) {
+        cleanup();
+      }
+    };
+  }, [serverConfig?.settings.remoteServers, applyOrchestrationEvents, syncServerReadModel]);
 
   useServerWelcomeSubscription(handleWelcome);
   useServerConfigUpdatedSubscription(handleServerConfigUpdated);
