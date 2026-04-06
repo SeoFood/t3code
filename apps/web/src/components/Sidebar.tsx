@@ -1710,14 +1710,14 @@ export default function Sidebar() {
           >
             <button
               type="button"
-              className="absolute top-1 right-8 flex size-5 items-center justify-center rounded-md p-0 text-muted-foreground/50 opacity-0 transition-opacity hover:bg-secondary hover:text-foreground group-hover/project-header:opacity-100"
+              className="absolute top-1.5 right-8 flex size-4 items-center justify-center rounded p-0 text-muted-foreground/40 hover:bg-secondary hover:text-foreground"
               aria-label={`GitHub issues and PRs for ${project.name}`}
               onClick={(event) => {
                 event.preventDefault();
                 event.stopPropagation();
               }}
             >
-              <GitPullRequestIcon className="size-3.5" />
+              <GitPullRequestIcon className="size-3" />
             </button>
           </GitHubItemsPopover>
           <Tooltip>
