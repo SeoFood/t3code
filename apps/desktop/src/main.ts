@@ -65,7 +65,13 @@ const STATE_DIR = Path.join(BASE_DIR, "userdata");
 const DESKTOP_SCHEME = "t3";
 const ROOT_DIR = Path.resolve(__dirname, "../../..");
 const isDevelopment = Boolean(process.env.VITE_DEV_SERVER_URL);
-const APP_DISPLAY_NAME = isDevelopment ? "T3 Code (Dev)" : "T3 Code (Alpha)";
+const remoteWsUrl = process.env.T3CODE_DESKTOP_WS_URL?.trim() || "";
+const isRemoteMode = remoteWsUrl.length > 0;
+const APP_DISPLAY_NAME = isRemoteMode
+  ? `T3 Code (Remote)`
+  : isDevelopment
+    ? "T3 Code (Dev)"
+    : "T3 Code (Alpha)";
 const APP_USER_MODEL_ID = "com.t3tools.t3code";
 const LINUX_DESKTOP_ENTRY_NAME = isDevelopment ? "t3code-dev.desktop" : "t3code.desktop";
 const LINUX_WM_CLASS = isDevelopment ? "t3code-dev" : "t3code";
@@ -1430,6 +1436,17 @@ configureAppIdentity();
 
 async function bootstrap(): Promise<void> {
   writeDesktopLogHeader("bootstrap start");
+
+  if (isRemoteMode) {
+    backendWsUrl = remoteWsUrl;
+    writeDesktopLogHeader(`bootstrap remote mode: connecting to ${remoteWsUrl}`);
+    registerIpcHandlers();
+    writeDesktopLogHeader("bootstrap ipc handlers registered");
+    mainWindow = createWindow();
+    writeDesktopLogHeader("bootstrap main window created (remote, no local server)");
+    return;
+  }
+
   backendPort = await Effect.service(NetService).pipe(
     Effect.flatMap((net) => net.reserveLoopbackPort()),
     Effect.provide(NetService.layer),
@@ -1454,7 +1471,9 @@ app.on("before-quit", () => {
   updateInstallInFlight = false;
   writeDesktopLogHeader("before-quit received");
   clearUpdatePollTimer();
-  stopBackend();
+  if (!isRemoteMode) {
+    stopBackend();
+  }
   restoreStdIoCapture?.();
 });
 
