@@ -1,4 +1,5 @@
 import {
+  LOCAL_SERVER_ID,
   OrchestrationEvent,
   type ServerLifecycleWelcomePayload,
   type ThreadId,
@@ -595,8 +596,29 @@ function EventRouter() {
 
   useEffect(() => {
     const remoteServers = serverConfig?.settings.remoteServers ?? [];
-    const cleanups: (() => void)[] = [];
+    const currentServerIds = new Set(remoteServers.map((s) => String(s.id)));
+    const connectedRemoteIds = serverConnectionRegistry
+      .getAllServerIds()
+      .filter((id) => id !== LOCAL_SERVER_ID);
 
+    // Disconnect removed servers and clear their data from the store
+    for (const connectedId of connectedRemoteIds) {
+      if (!currentServerIds.has(String(connectedId))) {
+        void serverConnectionRegistry.disconnect(connectedId);
+        syncServerReadModel(
+          {
+            projects: [],
+            threads: [],
+            snapshotSequence: 0,
+            updatedAt: new Date().toISOString(),
+          },
+          connectedId,
+        );
+      }
+    }
+
+    // Connect new servers
+    const cleanups: (() => void)[] = [];
     for (const server of remoteServers) {
       if (serverConnectionRegistry.isConnected(server.id)) continue;
 
