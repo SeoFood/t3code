@@ -9,7 +9,7 @@ import { ServiceMap } from "effect";
 import type { Effect } from "effect";
 
 import type { ProcessRunResult } from "../../processRunner";
-import type { GitHubCliError } from "@t3tools/contracts";
+import type { GitHubCliError, GitHubIssueSummary, GitHubPrListSummary } from "@t3tools/contracts";
 
 export interface GitHubPullRequestSummary {
   readonly number: number;
@@ -50,6 +50,22 @@ export interface GitHubCliShape {
     readonly headSelector: string;
     readonly limit?: number;
   }) => Effect.Effect<ReadonlyArray<GitHubPullRequestSummary>, GitHubCliError>;
+
+  /**
+   * List open issues for the repository.
+   */
+  readonly listOpenIssues: (input: {
+    readonly cwd: string;
+    readonly limit?: number;
+  }) => Effect.Effect<ReadonlyArray<GitHubIssueSummary>, GitHubCliError>;
+
+  /**
+   * List all open pull requests for the repository.
+   */
+  readonly listAllOpenPullRequests: (input: {
+    readonly cwd: string;
+    readonly limit?: number;
+  }) => Effect.Effect<ReadonlyArray<GitHubPrListSummary>, GitHubCliError>;
 
   /**
    * Resolve a pull request by URL, number, or branch-ish identifier.

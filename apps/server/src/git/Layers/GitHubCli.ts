@@ -1,8 +1,13 @@
 import { Effect, Layer, Schema } from "effect";
-import { PositiveInt, TrimmedNonEmptyString } from "@t3tools/contracts";
+import {
+  GitHubCliError,
+  GitHubIssueSummary,
+  GitHubPrListSummary,
+  PositiveInt,
+  TrimmedNonEmptyString,
+} from "@t3tools/contracts";
 
 import { runProcess } from "../../processRunner";
-import { GitHubCliError } from "@t3tools/contracts";
 import {
   GitHubCli,
   type GitHubRepositoryCloneUrls,
@@ -109,6 +114,9 @@ const RawGitHubRepositoryCloneUrlsSchema = Schema.Struct({
   sshUrl: TrimmedNonEmptyString,
 });
 
+const RawGitHubIssueSummaryArraySchema = Schema.Array(GitHubIssueSummary);
+const RawGitHubPrListSummaryArraySchema = Schema.Array(GitHubPrListSummary);
+
 function normalizePullRequestSummary(
   raw: Schema.Schema.Type<typeof RawGitHubPullRequestSchema>,
 ): GitHubPullRequestSummary {
@@ -146,7 +154,12 @@ function normalizeRepositoryCloneUrls(
 function decodeGitHubJson<S extends Schema.Top>(
   raw: string,
   schema: S,
-  operation: "listOpenPullRequests" | "getPullRequest" | "getRepositoryCloneUrls",
+  operation:
+    | "listOpenPullRequests"
+    | "listAllOpenPullRequests"
+    | "listOpenIssues"
+    | "getPullRequest"
+    | "getRepositoryCloneUrls",
   invalidDetail: string,
 ): Effect.Effect<S["Type"], GitHubCliError, S["DecodingServices"]> {
   return Schema.decodeEffect(Schema.fromJsonString(schema))(raw).pipe(
@@ -202,6 +215,58 @@ const makeGitHubCli = Effect.sync(() => {
               ),
         ),
         Effect.map((pullRequests) => pullRequests.map(normalizePullRequestSummary)),
+      ),
+    listOpenIssues: (input) =>
+      execute({
+        cwd: input.cwd,
+        args: [
+          "issue",
+          "list",
+          "--state",
+          "open",
+          "--limit",
+          String(input.limit ?? 30),
+          "--json",
+          "number,title,body,author,labels",
+        ],
+      }).pipe(
+        Effect.map((result) => result.stdout.trim()),
+        Effect.flatMap((raw) =>
+          raw.length === 0
+            ? Effect.succeed([])
+            : decodeGitHubJson(
+                raw,
+                RawGitHubIssueSummaryArraySchema,
+                "listOpenIssues",
+                "GitHub CLI returned invalid issue list JSON.",
+              ),
+        ),
+      ),
+    listAllOpenPullRequests: (input) =>
+      execute({
+        cwd: input.cwd,
+        args: [
+          "pr",
+          "list",
+          "--state",
+          "open",
+          "--limit",
+          String(input.limit ?? 30),
+          "--json",
+          "number,title,body,headRefName,author,labels",
+        ],
+      }).pipe(
+        Effect.map((result) => result.stdout.trim()),
+        Effect.flatMap((raw) =>
+          raw.length === 0
+            ? Effect.succeed([])
+            : decodeGitHubJson(
+                raw,
+                RawGitHubPrListSummaryArraySchema,
+                "listAllOpenPullRequests",
+                "GitHub CLI returned invalid PR list JSON.",
+              ),
+        ),
       ),
     getPullRequest: (input) =>
       execute({

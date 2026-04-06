@@ -8,6 +8,8 @@ import { Effect, FileSystem, Layer, PlatformError, Scope } from "effect";
 import { expect } from "vitest";
 import type {
   GitActionProgressEvent,
+  GitHubIssueSummary,
+  GitHubPrListSummary,
   GitPreparePullRequestThreadInput,
   ModelSelection,
   ThreadId,
@@ -523,6 +525,38 @@ function createGitHubCliWithFakeGh(scenario: FakeGhScenario = {}): {
               .map((entry) => normalizeFakePullRequestSummary(entry))
               .filter((entry): entry is GitHubPullRequestSummary => entry !== null),
           ),
+        ),
+      listOpenIssues: (input) =>
+        execute({
+          cwd: input.cwd,
+          args: [
+            "issue",
+            "list",
+            "--state",
+            "open",
+            "--limit",
+            String(input.limit ?? 30),
+            "--json",
+            "number,title,body,author,labels",
+          ],
+        }).pipe(
+          Effect.map((result) => JSON.parse(result.stdout) as ReadonlyArray<GitHubIssueSummary>),
+        ),
+      listAllOpenPullRequests: (input) =>
+        execute({
+          cwd: input.cwd,
+          args: [
+            "pr",
+            "list",
+            "--state",
+            "open",
+            "--limit",
+            String(input.limit ?? 30),
+            "--json",
+            "number,title,body,headRefName,author,labels",
+          ],
+        }).pipe(
+          Effect.map((result) => JSON.parse(result.stdout) as ReadonlyArray<GitHubPrListSummary>),
         ),
       createPullRequest: (input) =>
         execute({
