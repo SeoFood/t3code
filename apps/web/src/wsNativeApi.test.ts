@@ -93,6 +93,13 @@ vi.mock("./wsRpcClient", () => {
   };
 });
 
+vi.mock("./rpc/serverConnectionRegistry", () => ({
+  serverConnectionRegistry: {
+    connectLocal: () => rpcClientMock,
+    disposeAll: vi.fn(),
+  },
+}));
+
 vi.mock("./contextMenuFallback", () => ({
   showContextMenuFallback: showContextMenuFallbackMock,
 }));
