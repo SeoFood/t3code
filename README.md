@@ -61,6 +61,8 @@ Spotlight syncs file changes from a worktree back to the repo root directory, en
 - **rsync-based sync** - Replaced the original git-checkout approach (which failed due to branch locking in worktrees) with rsync for reliable file mirroring
 - **Automatic watching** - File watcher on the worktree triggers sync with 500ms debounce
 - **Clean restore** - Disabling spotlight restores the repo root to its original state via `git checkout .` + `git clean`
+- **Terminal follows spotlight** - Toggling spotlight automatically `cd`s all open terminals to the repo root (on) or back to the worktree (off); new terminals also open in the correct directory
+- **Nerd Font support** - Terminal font stack includes FiraCode, JetBrainsMono, and Hack Nerd Font fallbacks for icon rendering
 
 Enable via Settings > General > Spotlight. The toggle appears in the thread header when a worktree is active.
 
