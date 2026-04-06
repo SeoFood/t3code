@@ -106,12 +106,16 @@ export function useUpdateSettings() {
       const { serverPatch, clientPatch } = splitPatch(patch);
 
       if (Object.keys(serverPatch).length > 0) {
+        console.log("[useSettings] serverPatch keys:", Object.keys(serverPatch));
         const currentServerConfig = getServerConfig();
         if (currentServerConfig) {
           applySettingsUpdated(deepMerge(currentServerConfig.settings, serverPatch));
         }
-        // Fire-and-forget RPC — push will reconcile on success
-        void ensureNativeApi().server.updateSettings(serverPatch);
+        // Fire-and-forget RPC
+        ensureNativeApi()
+          .server.updateSettings(serverPatch)
+          .then(() => console.log("[useSettings] updateSettings RPC success"))
+          .catch((err) => console.error("[useSettings] updateSettings RPC error:", err));
       }
 
       if (Object.keys(clientPatch).length > 0) {

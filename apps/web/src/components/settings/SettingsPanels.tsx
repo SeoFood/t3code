@@ -1649,9 +1649,9 @@ export function ServersSettingsPanel() {
       authToken: authToken,
       sortOrder: remoteServers.length,
     };
-    updateSettings({
-      remoteServers: [...remoteServers, newServer],
-    });
+    const patch = { remoteServers: [...remoteServers, newServer] };
+    console.log("[servers-settings] saving patch:", JSON.stringify(patch, null, 2));
+    updateSettings(patch);
     setName("");
     setUrl("");
     setAuthToken("");
@@ -1703,7 +1703,7 @@ export function ServersSettingsPanel() {
               onChange={(e) => setName(e.target.value)}
             />
             <Input
-              placeholder="wss://example.com"
+              placeholder="http://your-server:3773"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
             />

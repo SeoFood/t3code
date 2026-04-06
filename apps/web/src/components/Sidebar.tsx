@@ -735,9 +735,10 @@ export default function Sidebar() {
   const setSelectionAnchor = useThreadSelectionStore((s) => s.setAnchor);
   const isLinuxDesktop = isElectron && isLinuxPlatform(navigator.platform);
   const platform = navigator.platform;
-  const shouldBrowseForProjectImmediately = isElectron && !isLinuxDesktop;
-  const shouldShowProjectPathEntry = addingProject && !shouldBrowseForProjectImmediately;
   const remoteServers = useMemo(() => serverConfig?.settings.remoteServers ?? [], [serverConfig]);
+  const hasRemoteServers = remoteServers.length > 0;
+  const shouldBrowseForProjectImmediately = isElectron && !isLinuxDesktop && !hasRemoteServers;
+  const shouldShowProjectPathEntry = addingProject && (!shouldBrowseForProjectImmediately || hasRemoteServers);
   const orderedProjects = useMemo(() => {
     return orderItemsByPreferredIds({
       items: projects,
@@ -2130,7 +2131,12 @@ export default function Sidebar() {
                         onValueChange={(v) => setNewProjectServerId(v as ServerId)}
                       >
                         <SelectTrigger size="xs" className="w-full text-xs">
-                          <SelectValue />
+                          <SelectValue>
+                            {newProjectServerId === LOCAL_SERVER_ID
+                              ? "Local"
+                              : (remoteServers.find((s) => s.id === newProjectServerId)?.name ??
+                                "Remote")}
+                          </SelectValue>
                         </SelectTrigger>
                         <SelectPopup>
                           <SelectItem value={LOCAL_SERVER_ID}>Local</SelectItem>
