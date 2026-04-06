@@ -1,3 +1,5 @@
+import type { ServerId } from "@t3tools/contracts";
+import { LOCAL_SERVER_ID } from "@t3tools/contracts";
 import { useAtomValue } from "@effect/atom-react";
 import { Atom } from "effect/unstable/reactivity";
 
@@ -53,20 +55,48 @@ export const wsConnectionStatusAtom = Atom.make(INITIAL_WS_CONNECTION_STATUS).pi
   Atom.withLabel("ws-connection-status"),
 );
 
+// ---------------------------------------------------------------------------
+// Per-server connection status atoms
+// ---------------------------------------------------------------------------
+
+const serverConnectionStatusAtoms = new Map<string, typeof wsConnectionStatusAtom>();
+
+export function getOrCreateServerConnectionStatusAtom(serverId: ServerId) {
+  const key = String(serverId);
+  let atom = serverConnectionStatusAtoms.get(key);
+  if (!atom) {
+    atom = Atom.make(INITIAL_WS_CONNECTION_STATUS).pipe(
+      Atom.keepAlive,
+      Atom.withLabel(`ws-connection-status-${key}`),
+    );
+    serverConnectionStatusAtoms.set(key, atom);
+  }
+  return atom;
+}
+
+function resolveAtom(serverId?: ServerId) {
+  if (serverId === undefined || serverId === LOCAL_SERVER_ID) {
+    return wsConnectionStatusAtom;
+  }
+  return getOrCreateServerConnectionStatusAtom(serverId);
+}
+
 function isoNow() {
   return new Date().toISOString();
 }
 
 function updateWsConnectionStatus(
   updater: (current: WsConnectionStatus) => WsConnectionStatus,
+  serverId?: ServerId,
 ): WsConnectionStatus {
-  const nextStatus = updater(getWsConnectionStatus());
-  appAtomRegistry.set(wsConnectionStatusAtom, nextStatus);
+  const atom = resolveAtom(serverId);
+  const nextStatus = updater(appAtomRegistry.get(atom));
+  appAtomRegistry.set(atom, nextStatus);
   return nextStatus;
 }
 
-export function getWsConnectionStatus(): WsConnectionStatus {
-  return appAtomRegistry.get(wsConnectionStatusAtom);
+export function getWsConnectionStatus(serverId?: ServerId): WsConnectionStatus {
+  return appAtomRegistry.get(resolveAtom(serverId));
 }
 
 export function getWsConnectionUiState(status: WsConnectionStatus): WsConnectionUiState {
@@ -85,71 +115,99 @@ export function getWsConnectionUiState(status: WsConnectionStatus): WsConnection
   return "reconnecting";
 }
 
-export function recordWsConnectionAttempt(socketUrl: string): WsConnectionStatus {
-  return updateWsConnectionStatus((current) => ({
-    ...current,
-    attemptCount: current.attemptCount + 1,
-    nextRetryAt: null,
-    phase: "connecting",
-    reconnectAttemptCount: current.phase === "connected" ? 1 : current.reconnectAttemptCount + 1,
-    reconnectPhase: "attempting",
-    socketUrl,
-  }));
-}
-
-export function recordWsConnectionOpened(): WsConnectionStatus {
-  return updateWsConnectionStatus((current) => ({
-    ...current,
-    closeCode: null,
-    closeReason: null,
-    connectedAt: isoNow(),
-    disconnectedAt: null,
-    hasConnected: true,
-    nextRetryAt: null,
-    phase: "connected",
-    reconnectAttemptCount: 0,
-    reconnectPhase: "idle",
-  }));
-}
-
-export function recordWsConnectionErrored(message?: string | null): WsConnectionStatus {
-  return updateWsConnectionStatus((current) =>
-    applyDisconnectState(current, {
-      lastError: message?.trim() ? message : current.lastError,
-      lastErrorAt: isoNow(),
+export function recordWsConnectionAttempt(
+  socketUrl: string,
+  serverId?: ServerId,
+): WsConnectionStatus {
+  return updateWsConnectionStatus(
+    (current) => ({
+      ...current,
+      attemptCount: current.attemptCount + 1,
+      nextRetryAt: null,
+      phase: "connecting",
+      reconnectAttemptCount: current.phase === "connected" ? 1 : current.reconnectAttemptCount + 1,
+      reconnectPhase: "attempting",
+      socketUrl,
     }),
+    serverId,
   );
 }
 
-export function recordWsConnectionClosed(details?: {
-  readonly code?: number;
-  readonly reason?: string;
-}): WsConnectionStatus {
-  return updateWsConnectionStatus((current) =>
-    applyDisconnectState(current, {
-      closeCode: details?.code ?? current.closeCode,
-      closeReason: details?.reason?.trim() ? details.reason : current.closeReason,
+export function recordWsConnectionOpened(serverId?: ServerId): WsConnectionStatus {
+  return updateWsConnectionStatus(
+    (current) => ({
+      ...current,
+      closeCode: null,
+      closeReason: null,
+      connectedAt: isoNow(),
+      disconnectedAt: null,
+      hasConnected: true,
+      nextRetryAt: null,
+      phase: "connected",
+      reconnectAttemptCount: 0,
+      reconnectPhase: "idle",
     }),
+    serverId,
   );
 }
 
-export function setBrowserOnlineStatus(online: boolean): WsConnectionStatus {
-  return updateWsConnectionStatus((current) => ({
-    ...current,
-    online,
-  }));
+export function recordWsConnectionErrored(
+  message?: string | null,
+  serverId?: ServerId,
+): WsConnectionStatus {
+  return updateWsConnectionStatus(
+    (current) =>
+      applyDisconnectState(current, {
+        lastError: message?.trim() ? message : current.lastError,
+        lastErrorAt: isoNow(),
+      }),
+    serverId,
+  );
 }
 
-export function resetWsReconnectBackoff(): WsConnectionStatus {
-  return updateWsConnectionStatus((current) => ({
-    ...current,
-    nextRetryAt: null,
-    reconnectAttemptCount: 0,
-    reconnectPhase: "idle",
-  }));
+export function recordWsConnectionClosed(
+  details?: {
+    readonly code?: number;
+    readonly reason?: string;
+  },
+  serverId?: ServerId,
+): WsConnectionStatus {
+  return updateWsConnectionStatus(
+    (current) =>
+      applyDisconnectState(current, {
+        closeCode: details?.code ?? current.closeCode,
+        closeReason: details?.reason?.trim() ? details.reason : current.closeReason,
+      }),
+    serverId,
+  );
 }
 
-export function exhaustWsReconnectIfStillWaiting(expectedNextRetryAt: string): WsConnectionStatus {
+export function setBrowserOnlineStatus(online: boolean, serverId?: ServerId): WsConnectionStatus {
+  return updateWsConnectionStatus(
+    (current) => ({
+      ...current,
+      online,
+    }),
+    serverId,
+  );
+}
+
+export function resetWsReconnectBackoff(serverId?: ServerId): WsConnectionStatus {
+  return updateWsConnectionStatus(
+    (current) => ({
+      ...current,
+      nextRetryAt: null,
+      reconnectAttemptCount: 0,
+      reconnectPhase: "idle",
+    }),
+    serverId,
+  );
+}
+
+export function exhaustWsReconnectIfStillWaiting(
+  expectedNextRetryAt: string,
+  serverId?: ServerId,
+): WsConnectionStatus {
   return updateWsConnectionStatus((current) => {
     if (
       current.reconnectPhase !== "waiting" ||
@@ -166,7 +224,7 @@ export function exhaustWsReconnectIfStillWaiting(expectedNextRetryAt: string): W
       reconnectAttemptCount: current.reconnectMaxAttempts,
       reconnectPhase: "exhausted",
     };
-  });
+  }, serverId);
 }
 
 export function resetWsConnectionStateForTests(): void {
