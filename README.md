@@ -54,6 +54,16 @@ Connect to multiple T3 Code servers from a single app instance. Local and remote
 
 See [docs/plans/2026-04-06-multi-server-design.md](./docs/plans/2026-04-06-multi-server-design.md) for the full design document.
 
+### Spotlight Sync Fix
+
+Spotlight syncs file changes from a worktree back to the repo root directory, enabling hot-reloading in external tools (Xcode, dev servers, etc.).
+
+- **rsync-based sync** - Replaced the original git-checkout approach (which failed due to branch locking in worktrees) with rsync for reliable file mirroring
+- **Automatic watching** - File watcher on the worktree triggers sync with 500ms debounce
+- **Clean restore** - Disabling spotlight restores the repo root to its original state via `git checkout .` + `git clean`
+
+Enable via Settings > General > Spotlight. The toggle appears in the thread header when a worktree is active.
+
 ## Some notes
 
 We are very very early in this project. Expect bugs.
