@@ -444,13 +444,16 @@ function PersistentThreadTerminalDrawer({
   const storeSetActiveTerminal = useTerminalStateStore((state) => state.setActiveTerminal);
   const storeCloseTerminal = useTerminalStateStore((state) => state.closeTerminal);
   const [localFocusRequestId, setLocalFocusRequestId] = useState(0);
+  const spotlightActive = useSpotlightActive(threadId);
   const worktreePath = serverThread?.worktreePath ?? draftThread?.worktreePath ?? null;
   const effectiveWorktreePath = useMemo(() => {
+    // When spotlight is active, use repo root so new terminals open there
+    if (spotlightActive) return null;
     if (launchContext !== null) {
       return launchContext.worktreePath;
     }
     return worktreePath;
-  }, [launchContext, worktreePath]);
+  }, [launchContext, spotlightActive, worktreePath]);
   const cwd = useMemo(
     () =>
       launchContext?.cwd ??
