@@ -1,4 +1,5 @@
-import { cpSync, readdirSync, rmSync, statSync, watch, type FSWatcher } from "node:fs";
+import { execFile } from "node:child_process";
+import { watch, type FSWatcher } from "node:fs";
 import path from "node:path";
 
 import {
@@ -48,43 +49,26 @@ const makeSpotlightSync = Effect.gen(function* () {
       }
     });
 
-  /**
-   * Sync files from worktree to repo root using native Node.js fs.
-   * Mirrors the worktree contents into the repo root, skipping .git directories.
-   * Deletes files in dest that don't exist in src (like rsync --delete).
-   */
-  const syncFiles = (src: string, dest: string): void => {
-    const srcEntries = new Set(readdirSync(src).filter((name) => name !== ".git"));
-    // Remove files in dest that are not in src (excluding .git)
-    for (const name of readdirSync(dest)) {
-      if (name === ".git") continue;
-      if (!srcEntries.has(name)) {
-        rmSync(path.join(dest, name), { recursive: true, force: true });
-      }
-    }
-    // Copy src to dest
-    for (const name of srcEntries) {
-      const srcPath = path.join(src, name);
-      const destPath = path.join(dest, name);
-      const stat = statSync(srcPath);
-      if (stat.isDirectory()) {
-        cpSync(srcPath, destPath, { recursive: true, force: true });
-      } else {
-        cpSync(srcPath, destPath, { force: true });
-      }
-    }
-  };
+  const runRsync = (src: string, dest: string): Effect.Effect<void, SpotlightError> =>
+    Effect.tryPromise({
+      try: () =>
+        new Promise<void>((resolve, reject) => {
+          const srcPath = src.endsWith("/") ? src : `${src}/`;
+          execFile("rsync", ["-a", "--delete", "--exclude=.git", srcPath, dest], (error) => {
+            if (error) reject(error);
+            else resolve();
+          });
+        }),
+      catch: (error) =>
+        new SpotlightError({
+          operation: "sync",
+          detail: error instanceof Error ? error.message : String(error),
+        }),
+    });
 
   const syncWorktreeToRoot = (session: SpotlightSession): Effect.Effect<void> =>
     Effect.gen(function* () {
-      yield* Effect.try({
-        try: () => syncFiles(session.worktreePath, session.repoRootCwd),
-        catch: (error) =>
-          new SpotlightError({
-            operation: "sync",
-            detail: error instanceof Error ? error.message : String(error),
-          }),
-      });
+      yield* runRsync(session.worktreePath, session.repoRootCwd);
 
       session.lastSyncedAt = nowIso();
 
