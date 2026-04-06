@@ -2,6 +2,7 @@ import {
   ArchiveIcon,
   ArchiveX,
   ChevronDownIcon,
+  GlobeIcon,
   InfoIcon,
   LoaderIcon,
   PlusIcon,
@@ -14,6 +15,7 @@ import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } fro
 import {
   PROVIDER_DISPLAY_NAMES,
   type ProviderKind,
+  type RemoteServerId,
   type ServerProvider,
   type ServerProviderModel,
   ThreadId,
@@ -58,6 +60,7 @@ import { Switch } from "../ui/switch";
 import { toastManager } from "../ui/toast";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { ProjectFavicon } from "../ProjectFavicon";
+import { serverConnectionRegistry } from "../../rpc/serverConnectionRegistry";
 import {
   useServerAvailableEditors,
   useServerKeybindingsConfigPath,
@@ -1622,6 +1625,112 @@ export function ArchivedThreadsPanel() {
           </SettingsSection>
         ))
       )}
+    </SettingsPageContainer>
+  );
+}
+
+// ── Servers Settings ────────────────────────────────────────────────
+
+export function ServersSettingsPanel() {
+  const settings = useSettings();
+  const { updateSettings } = useUpdateSettings();
+  const remoteServers = settings.remoteServers ?? [];
+  const [isAdding, setIsAdding] = useState(false);
+  const [name, setName] = useState("");
+  const [url, setUrl] = useState("");
+  const [authToken, setAuthToken] = useState("");
+
+  const addServer = () => {
+    if (!name.trim() || !url.trim()) return;
+    const newServer = {
+      id: crypto.randomUUID() as RemoteServerId,
+      name: name.trim(),
+      url: url.trim(),
+      authToken: authToken,
+      sortOrder: remoteServers.length,
+    };
+    updateSettings({
+      remoteServers: [...remoteServers, newServer],
+    });
+    setName("");
+    setUrl("");
+    setAuthToken("");
+    setIsAdding(false);
+  };
+
+  const removeServer = (id: RemoteServerId) => {
+    updateSettings({
+      remoteServers: remoteServers.filter((s) => s.id !== id),
+    });
+    void serverConnectionRegistry.disconnect(id);
+  };
+
+  return (
+    <SettingsPageContainer>
+      <SettingsSection title="Remote Servers" icon={<GlobeIcon className="size-3" />}>
+        {remoteServers.length === 0 && !isAdding ? (
+          <div className="px-4 py-6 text-center text-xs text-muted-foreground">
+            No remote servers configured. Add one to see remote projects here.
+          </div>
+        ) : null}
+        {remoteServers.map((server) => (
+          <div
+            key={server.id}
+            className="flex items-center justify-between border-t border-border px-4 py-3 first:border-t-0"
+          >
+            <div className="flex items-center gap-2">
+              <span
+                className={cn(
+                  "size-2 rounded-full",
+                  serverConnectionRegistry.isConnected(server.id) ? "bg-green-500" : "bg-red-500",
+                )}
+              />
+              <div>
+                <div className="text-sm font-medium">{server.name}</div>
+                <div className="text-xs text-muted-foreground">{server.url}</div>
+              </div>
+            </div>
+            <Button variant="ghost" size="icon-xs" onClick={() => removeServer(server.id)}>
+              <XIcon className="size-3.5" />
+            </Button>
+          </div>
+        ))}
+        {isAdding ? (
+          <div className="space-y-3 border-t border-border px-4 py-4">
+            <Input
+              placeholder="Server name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+            <Input
+              placeholder="wss://example.com"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+            />
+            <Input
+              type="password"
+              placeholder="Auth token"
+              value={authToken}
+              onChange={(e) => setAuthToken(e.target.value)}
+            />
+            <div className="flex gap-2">
+              <Button size="sm" onClick={addServer} disabled={!name.trim() || !url.trim()}>
+                Save
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setIsAdding(false)}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="border-t border-border px-4 py-3 first:border-t-0">
+            <Button variant="ghost" size="sm" onClick={() => setIsAdding(true)}>
+              <PlusIcon className="size-3.5" />
+              Add Server
+            </Button>
+          </div>
+        )}
+      </SettingsSection>
     </SettingsPageContainer>
   );
 }
