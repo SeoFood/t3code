@@ -476,6 +476,20 @@ function PersistentThreadTerminalDrawer({
     [effectiveWorktreePath, project],
   );
 
+  // When spotlight toggles, cd all terminals to the appropriate directory
+  const prevSpotlightRef = useRef(spotlightActive);
+  useEffect(() => {
+    if (prevSpotlightRef.current === spotlightActive) return;
+    prevSpotlightRef.current = spotlightActive;
+    if (!project) return;
+    const api = readNativeApi();
+    if (!api) return;
+    const targetDir = spotlightActive ? project.cwd : (worktreePath ?? project.cwd);
+    for (const tid of terminalState.terminalIds) {
+      void api.terminal.write({ threadId, terminalId: tid, data: `cd ${JSON.stringify(targetDir)}\n` });
+    }
+  }, [spotlightActive, project, worktreePath, threadId, terminalState.terminalIds]);
+
   const bumpFocusRequestId = useCallback(() => {
     if (!visible) {
       return;
