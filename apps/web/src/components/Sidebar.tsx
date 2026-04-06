@@ -738,7 +738,8 @@ export default function Sidebar() {
   const remoteServers = useMemo(() => serverConfig?.settings.remoteServers ?? [], [serverConfig]);
   const hasRemoteServers = remoteServers.length > 0;
   const shouldBrowseForProjectImmediately = isElectron && !isLinuxDesktop && !hasRemoteServers;
-  const shouldShowProjectPathEntry = addingProject && (!shouldBrowseForProjectImmediately || hasRemoteServers);
+  const shouldShowProjectPathEntry =
+    addingProject && (!shouldBrowseForProjectImmediately || hasRemoteServers);
   const orderedProjects = useMemo(() => {
     return orderItemsByPreferredIds({
       items: projects,
@@ -1038,18 +1039,16 @@ export default function Sidebar() {
         finishRename();
         return;
       }
-      const api = readNativeApi();
-      if (!api) {
+      const thread = useStore.getState().threads.find((t) => t.id === threadId);
+      if (!thread) {
         finishRename();
         return;
       }
       try {
-        await api.orchestration.dispatchCommand({
-          type: "thread.meta.update",
-          commandId: newCommandId(),
-          threadId,
-          title: trimmed,
-        });
+        await dispatchCommandToServer(
+          { type: "thread.meta.update", commandId: newCommandId(), threadId, title: trimmed },
+          thread.serverId,
+        );
       } catch (error) {
         toastManager.add({
           type: "error",

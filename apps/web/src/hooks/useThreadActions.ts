@@ -8,7 +8,7 @@ import { useComposerDraftStore } from "../composerDraftStore";
 import { useHandleNewThread } from "./useHandleNewThread";
 import { gitRemoveWorktreeMutationOptions } from "../lib/gitReactQuery";
 import { newCommandId } from "../lib/utils";
-import { readNativeApi } from "../nativeApi";
+import { dispatchCommandToServer, readNativeApi } from "../nativeApi";
 import { useStore } from "../store";
 import { useTerminalStateStore } from "../terminalStateStore";
 import { formatWorktreePathForDisplay, getOrphanedWorktreePathForThread } from "../worktreeCleanup";
@@ -41,11 +41,10 @@ export function useThreadActions() {
         throw new Error("Cannot archive a running thread.");
       }
 
-      await api.orchestration.dispatchCommand({
-        type: "thread.archive",
-        commandId: newCommandId(),
-        threadId,
-      });
+      await dispatchCommandToServer(
+        { type: "thread.archive", commandId: newCommandId(), threadId },
+        thread.serverId,
+      );
 
       if (routeThreadId === threadId) {
         await handleNewThread(thread.projectId);
@@ -55,13 +54,12 @@ export function useThreadActions() {
   );
 
   const unarchiveThread = useCallback(async (threadId: ThreadId) => {
-    const api = readNativeApi();
-    if (!api) return;
-    await api.orchestration.dispatchCommand({
-      type: "thread.unarchive",
-      commandId: newCommandId(),
-      threadId,
-    });
+    const thread = useStore.getState().threads.find((entry) => entry.id === threadId);
+    if (!thread) return;
+    await dispatchCommandToServer(
+      { type: "thread.unarchive", commandId: newCommandId(), threadId },
+      thread.serverId,
+    );
   }, []);
 
   const deleteThread = useCallback(
@@ -94,14 +92,15 @@ export function useThreadActions() {
         ));
 
       if (thread.session && thread.session.status !== "closed") {
-        await api.orchestration
-          .dispatchCommand({
+        await dispatchCommandToServer(
+          {
             type: "thread.session.stop",
             commandId: newCommandId(),
             threadId,
             createdAt: new Date().toISOString(),
-          })
-          .catch(() => undefined);
+          },
+          thread.serverId,
+        ).catch(() => undefined);
       }
 
       try {
@@ -118,11 +117,10 @@ export function useThreadActions() {
         deletedThreadIds,
         sortOrder: appSettings.sidebarThreadSortOrder,
       });
-      await api.orchestration.dispatchCommand({
-        type: "thread.delete",
-        commandId: newCommandId(),
-        threadId,
-      });
+      await dispatchCommandToServer(
+        { type: "thread.delete", commandId: newCommandId(), threadId },
+        thread.serverId,
+      );
       clearComposerDraftForThread(threadId);
       clearProjectDraftThreadById(thread.projectId, thread.id);
       clearTerminalState(threadId);
