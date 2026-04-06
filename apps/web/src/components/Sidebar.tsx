@@ -1719,8 +1719,8 @@ export default function Sidebar() {
                       />
                     }
                     showOnHover
-                    className="top-1 right-7 size-5 rounded-md p-0 text-muted-foreground/70 hover:bg-secondary hover:text-foreground"
-                    onClick={(event) => {
+                    className="top-1 right-8 size-5 rounded-md p-0 text-muted-foreground/70 hover:bg-secondary hover:text-foreground"
+                    onPointerDown={(event) => {
                       event.preventDefault();
                       event.stopPropagation();
                       setGithubPopoverProjectId(
