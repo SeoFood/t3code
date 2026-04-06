@@ -45,6 +45,7 @@ import { CSS } from "@dnd-kit/utilities";
 import {
   DEFAULT_MODEL_BY_PROVIDER,
   type DesktopUpdateState,
+  type NativeApi,
   ProjectId,
   ThreadId,
   type GitStatusResult,
@@ -107,6 +108,7 @@ import {
   SidebarSeparator,
   SidebarTrigger,
 } from "./ui/sidebar";
+import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "./ui/select";
 import { useThreadSelectionStore } from "../threadSelectionStore";
 import { isNonEmpty as isNonEmptyString } from "effect/String";
 import {
@@ -709,6 +711,7 @@ export default function Sidebar() {
   const [isPickingFolder, setIsPickingFolder] = useState(false);
   const [isAddingProject, setIsAddingProject] = useState(false);
   const [addProjectError, setAddProjectError] = useState<string | null>(null);
+  const [newProjectServerId, setNewProjectServerId] = useState<ServerId>(LOCAL_SERVER_ID);
   const addProjectInputRef = useRef<HTMLInputElement | null>(null);
   const [renamingThreadId, setRenamingThreadId] = useState<ThreadId | null>(null);
   const [renamingTitle, setRenamingTitle] = useState("");
@@ -734,6 +737,7 @@ export default function Sidebar() {
   const platform = navigator.platform;
   const shouldBrowseForProjectImmediately = isElectron && !isLinuxDesktop;
   const shouldShowProjectPathEntry = addingProject && !shouldBrowseForProjectImmediately;
+  const remoteServers = useMemo(() => serverConfig?.settings.remoteServers ?? [], [serverConfig]);
   const orderedProjects = useMemo(() => {
     return orderItemsByPreferredIds({
       items: projects,
@@ -887,8 +891,18 @@ export default function Sidebar() {
     async (rawCwd: string) => {
       const cwd = rawCwd.trim();
       if (!cwd || isAddingProject) return;
-      const api = readNativeApi();
-      if (!api) return;
+
+      // Resolve the dispatchCommand for the selected server
+      let dispatchCommand: NativeApi["orchestration"]["dispatchCommand"];
+      if (newProjectServerId === LOCAL_SERVER_ID) {
+        const api = readNativeApi();
+        if (!api) return;
+        dispatchCommand = api.orchestration.dispatchCommand;
+      } else {
+        const client = serverConnectionRegistry.getClient(newProjectServerId);
+        if (!client) return;
+        dispatchCommand = client.orchestration.dispatchCommand;
+      }
 
       setIsAddingProject(true);
       const finishAddingProject = () => {
@@ -896,6 +910,7 @@ export default function Sidebar() {
         setNewCwd("");
         setAddProjectError(null);
         setAddingProject(false);
+        setNewProjectServerId(LOCAL_SERVER_ID);
       };
 
       const existing = projects.find((project) => project.cwd === cwd);
@@ -909,7 +924,7 @@ export default function Sidebar() {
       const createdAt = new Date().toISOString();
       const title = cwd.split(/[/\\]/).findLast(isNonEmptyString) ?? cwd;
       try {
-        await api.orchestration.dispatchCommand({
+        await dispatchCommand({
           type: "project.create",
           commandId: newCommandId(),
           projectId,
@@ -921,9 +936,12 @@ export default function Sidebar() {
           },
           createdAt,
         });
-        await handleNewThread(projectId, {
-          envMode: appSettings.defaultThreadEnvMode,
-        }).catch(() => undefined);
+        // Only auto-create a thread for local projects
+        if (newProjectServerId === LOCAL_SERVER_ID) {
+          await handleNewThread(projectId, {
+            envMode: appSettings.defaultThreadEnvMode,
+          }).catch(() => undefined);
+        }
       } catch (error) {
         const description =
           error instanceof Error ? error.message : "An error occurred while adding the project.";
@@ -945,6 +963,7 @@ export default function Sidebar() {
       focusMostRecentThreadForProject,
       handleNewThread,
       isAddingProject,
+      newProjectServerId,
       projects,
       shouldBrowseForProjectImmediately,
       appSettings.defaultThreadEnvMode,
@@ -981,7 +1000,13 @@ export default function Sidebar() {
       void handlePickFolder();
       return;
     }
-    setAddingProject((prev) => !prev);
+    setAddingProject((prev) => {
+      if (prev) {
+        // Closing the form - reset server selection
+        setNewProjectServerId(LOCAL_SERVER_ID);
+      }
+      return !prev;
+    });
   };
 
   const cancelRename = useCallback(() => {
@@ -2098,12 +2123,34 @@ export default function Sidebar() {
               </div>
               {shouldShowProjectPathEntry && (
                 <div className="mb-2 px-1">
+                  {remoteServers.length > 0 && (
+                    <div className="mb-1.5">
+                      <Select
+                        value={newProjectServerId as string}
+                        onValueChange={(v) => setNewProjectServerId(v as ServerId)}
+                      >
+                        <SelectTrigger size="xs" className="w-full text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectPopup>
+                          <SelectItem value={LOCAL_SERVER_ID}>Local</SelectItem>
+                          {remoteServers.map((server) => (
+                            <SelectItem key={server.id} value={server.id}>
+                              {server.name}
+                            </SelectItem>
+                          ))}
+                        </SelectPopup>
+                      </Select>
+                    </div>
+                  )}
                   {isElectron && (
                     <button
                       type="button"
                       className="mb-1.5 flex w-full items-center justify-center gap-2 rounded-md border border-border bg-secondary py-1.5 text-xs text-foreground/80 transition-colors duration-150 hover:bg-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
                       onClick={() => void handlePickFolder()}
-                      disabled={isPickingFolder || isAddingProject}
+                      disabled={
+                        isPickingFolder || isAddingProject || newProjectServerId !== LOCAL_SERVER_ID
+                      }
                     >
                       <FolderIcon className="size-3.5" />
                       {isPickingFolder ? "Picking folder..." : "Browse for folder"}
@@ -2128,6 +2175,7 @@ export default function Sidebar() {
                         if (event.key === "Escape") {
                           setAddingProject(false);
                           setAddProjectError(null);
+                          setNewProjectServerId(LOCAL_SERVER_ID);
                         }
                       }}
                       autoFocus
