@@ -123,6 +123,8 @@ import {
   resolveSelectableProvider,
 } from "../providerModels";
 import { useSettings } from "../hooks/useSettings";
+import { useSpotlightActive } from "../rpc/spotlightState";
+import { getWsRpcClient } from "../wsRpcClient";
 import { resolveAppModelSelection } from "../modelSelection";
 import { isTerminalFocused } from "../lib/terminalFocus";
 import {
@@ -582,6 +584,7 @@ export default function ChatView({ threadId }: ChatViewProps) {
     (store) => store.threadLastVisitedAtById[threadId],
   );
   const settings = useSettings();
+  const spotlightActive = useSpotlightActive(threadId);
   const setStickyComposerModelSelection = useComposerDraftStore(
     (store) => store.setStickyModelSelection,
   );
@@ -3945,6 +3948,28 @@ export default function ChatView({ threadId }: ChatViewProps) {
           diffToggleShortcutLabel={diffPanelShortcutLabel}
           gitCwd={gitCwd}
           diffOpen={diffOpen}
+          spotlightAvailable={settings.enableSpotlight && !!activeThread.worktreePath}
+          spotlightActive={spotlightActive}
+          onToggleSpotlight={() => {
+            const client = getWsRpcClient();
+            if (spotlightActive) {
+              client.spotlight.disable({ threadId: activeThread.id }).catch((err) => {
+                toastManager.add({
+                  type: "error",
+                  title: "Failed to disable spotlight",
+                  description: String(err),
+                });
+              });
+            } else {
+              client.spotlight.enable({ threadId: activeThread.id }).catch((err) => {
+                toastManager.add({
+                  type: "error",
+                  title: "Failed to enable spotlight",
+                  description: String(err),
+                });
+              });
+            }
+          }}
           onRunProjectScript={(script) => {
             void runProjectScript(script);
           }}

@@ -69,6 +69,14 @@ import {
   ServerUpsertKeybindingResult,
 } from "./server";
 import { ServerSettings, ServerSettingsError, ServerSettingsPatch } from "./settings";
+import {
+  SpotlightDisableInput,
+  SpotlightEnableInput,
+  SpotlightError,
+  SpotlightEvent,
+  SpotlightGetStatusInput,
+  SpotlightStatusResult,
+} from "./spotlight";
 
 export const WS_METHODS = {
   // Project registry methods
@@ -109,11 +117,17 @@ export const WS_METHODS = {
   serverGetSettings: "server.getSettings",
   serverUpdateSettings: "server.updateSettings",
 
+  // Spotlight methods
+  spotlightEnable: "spotlight.enable",
+  spotlightDisable: "spotlight.disable",
+  spotlightGetStatus: "spotlight.getStatus",
+
   // Streaming subscriptions
   subscribeOrchestrationDomainEvents: "subscribeOrchestrationDomainEvents",
   subscribeTerminalEvents: "subscribeTerminalEvents",
   subscribeServerConfig: "subscribeServerConfig",
   subscribeServerLifecycle: "subscribeServerLifecycle",
+  subscribeSpotlightEvents: "subscribeSpotlightEvents",
 } as const;
 
 export const WsServerUpsertKeybindingRpc = Rpc.make(WS_METHODS.serverUpsertKeybinding, {
@@ -321,6 +335,30 @@ export const WsSubscribeServerLifecycleRpc = Rpc.make(WS_METHODS.subscribeServer
   stream: true,
 });
 
+// ── Spotlight RPCs ──────────────────────────────────────────────
+
+export const WsSpotlightEnableRpc = Rpc.make(WS_METHODS.spotlightEnable, {
+  payload: SpotlightEnableInput,
+  error: SpotlightError,
+});
+
+export const WsSpotlightDisableRpc = Rpc.make(WS_METHODS.spotlightDisable, {
+  payload: SpotlightDisableInput,
+  error: SpotlightError,
+});
+
+export const WsSpotlightGetStatusRpc = Rpc.make(WS_METHODS.spotlightGetStatus, {
+  payload: SpotlightGetStatusInput,
+  success: SpotlightStatusResult,
+  error: SpotlightError,
+});
+
+export const WsSubscribeSpotlightEventsRpc = Rpc.make(WS_METHODS.subscribeSpotlightEvents, {
+  payload: Schema.Struct({}),
+  success: SpotlightEvent,
+  stream: true,
+});
+
 export const WsRpcGroup = RpcGroup.make(
   WsServerGetConfigRpc,
   WsServerRefreshProvidersRpc,
@@ -351,6 +389,10 @@ export const WsRpcGroup = RpcGroup.make(
   WsSubscribeTerminalEventsRpc,
   WsSubscribeServerConfigRpc,
   WsSubscribeServerLifecycleRpc,
+  WsSpotlightEnableRpc,
+  WsSpotlightDisableRpc,
+  WsSpotlightGetStatusRpc,
+  WsSubscribeSpotlightEventsRpc,
   WsOrchestrationGetSnapshotRpc,
   WsOrchestrationDispatchCommandRpc,
   WsOrchestrationGetTurnDiffRpc,

@@ -15,6 +15,7 @@ import {
   ProjectWriteFileError,
   OrchestrationReplayEventsError,
   ThreadId,
+  type SpotlightEvent,
   type TerminalEvent,
   WS_METHODS,
   WsRpcGroup,
@@ -41,6 +42,7 @@ import { ProviderRegistry } from "./provider/Services/ProviderRegistry";
 import { ServerLifecycleEvents } from "./serverLifecycleEvents";
 import { ServerRuntimeStartup } from "./serverRuntimeStartup";
 import { ServerSettingsService } from "./serverSettings";
+import { SpotlightSync } from "./spotlight/Services/SpotlightSync";
 import { TerminalManager } from "./terminal/Services/Manager";
 import { WorkspaceEntries } from "./workspace/Services/WorkspaceEntries";
 import { WorkspaceFileSystem } from "./workspace/Services/WorkspaceFileSystem";
@@ -65,6 +67,7 @@ const WsRpcLayer = WsRpcGroup.toLayer(
     const workspaceEntries = yield* WorkspaceEntries;
     const workspaceFileSystem = yield* WorkspaceFileSystem;
     const projectSetupScriptRunner = yield* ProjectSetupScriptRunner;
+    const spotlightSync = yield* SpotlightSync;
 
     const serverCommandId = (tag: string) =>
       CommandId.makeUnsafe(`server:${tag}:${crypto.randomUUID()}`);
@@ -373,6 +376,14 @@ const WsRpcLayer = WsRpcGroup.toLayer(
               yield* terminalManager.close({ threadId: normalizedCommand.threadId }).pipe(
                 Effect.catch((error) =>
                   Effect.logWarning("failed to close thread terminals after archive", {
+                    threadId: normalizedCommand.threadId,
+                    error: error.message,
+                  }),
+                ),
+              );
+              yield* spotlightSync.disable(normalizedCommand.threadId).pipe(
+                Effect.catch((error) =>
+                  Effect.logWarning("failed to disable spotlight after archive", {
                     threadId: normalizedCommand.threadId,
                     error: error.message,
                   }),
@@ -707,6 +718,31 @@ const WsRpcLayer = WsRpcGroup.toLayer(
             return Stream.concat(Stream.fromIterable(snapshotEvents), liveEvents);
           }),
           { "rpc.aggregate": "server" },
+        ),
+
+      // ── Spotlight ─────────────────────────────────────────────
+      [WS_METHODS.spotlightEnable]: (input) =>
+        observeRpcEffect(WS_METHODS.spotlightEnable, spotlightSync.enable(input.threadId), {
+          "rpc.aggregate": "spotlight",
+        }),
+      [WS_METHODS.spotlightDisable]: (input) =>
+        observeRpcEffect(WS_METHODS.spotlightDisable, spotlightSync.disable(input.threadId), {
+          "rpc.aggregate": "spotlight",
+        }),
+      [WS_METHODS.spotlightGetStatus]: (input) =>
+        observeRpcEffect(WS_METHODS.spotlightGetStatus, spotlightSync.getStatus(input.threadId), {
+          "rpc.aggregate": "spotlight",
+        }),
+      [WS_METHODS.subscribeSpotlightEvents]: (_input) =>
+        observeRpcStream(
+          WS_METHODS.subscribeSpotlightEvents,
+          Stream.callback<SpotlightEvent>((queue) =>
+            Effect.acquireRelease(
+              spotlightSync.subscribe((event) => Queue.offer(queue, event)),
+              (unsubscribe) => Effect.sync(unsubscribe),
+            ),
+          ),
+          { "rpc.aggregate": "spotlight" },
         ),
     });
   }),

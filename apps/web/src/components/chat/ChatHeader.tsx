@@ -6,7 +6,7 @@ import {
 } from "@t3tools/contracts";
 import { memo } from "react";
 import GitActionsControl from "../GitActionsControl";
-import { DiffIcon, TerminalSquareIcon } from "lucide-react";
+import { DiffIcon, SunIcon, TerminalSquareIcon } from "lucide-react";
 import { Badge } from "../ui/badge";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import ProjectScriptsControl, { type NewProjectScriptInput } from "../ProjectScriptsControl";
@@ -34,6 +34,9 @@ interface ChatHeaderProps {
   onAddProjectScript: (input: NewProjectScriptInput) => Promise<void>;
   onUpdateProjectScript: (scriptId: string, input: NewProjectScriptInput) => Promise<void>;
   onDeleteProjectScript: (scriptId: string) => Promise<void>;
+  spotlightAvailable: boolean;
+  spotlightActive: boolean;
+  onToggleSpotlight: () => void;
   onToggleTerminal: () => void;
   onToggleDiff: () => void;
 }
@@ -58,6 +61,9 @@ export const ChatHeader = memo(function ChatHeader({
   onAddProjectScript,
   onUpdateProjectScript,
   onDeleteProjectScript,
+  spotlightAvailable,
+  spotlightActive,
+  onToggleSpotlight,
   onToggleTerminal,
   onToggleDiff,
 }: ChatHeaderProps) {
@@ -102,6 +108,29 @@ export const ChatHeader = memo(function ChatHeader({
           />
         )}
         {activeProjectName && <GitActionsControl gitCwd={gitCwd} activeThreadId={activeThreadId} />}
+        {spotlightAvailable && (
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Toggle
+                  className="shrink-0"
+                  pressed={spotlightActive}
+                  onPressedChange={onToggleSpotlight}
+                  aria-label="Toggle spotlight sync"
+                  variant="outline"
+                  size="xs"
+                >
+                  <SunIcon className="size-3" />
+                </Toggle>
+              }
+            />
+            <TooltipPopup side="bottom">
+              {spotlightActive
+                ? "Spotlight active - syncing worktree to repo root"
+                : "Enable spotlight sync to repo root"}
+            </TooltipPopup>
+          </Tooltip>
+        )}
         <Tooltip>
           <TooltipTrigger
             render={

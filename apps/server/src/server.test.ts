@@ -63,6 +63,7 @@ import {
 import { ServerLifecycleEvents, type ServerLifecycleEventsShape } from "./serverLifecycleEvents.ts";
 import { ServerRuntimeStartup, type ServerRuntimeStartupShape } from "./serverRuntimeStartup.ts";
 import { ServerSettingsService, type ServerSettingsShape } from "./serverSettings.ts";
+import { SpotlightSync, type SpotlightSyncShape } from "./spotlight/Services/SpotlightSync.ts";
 import { TerminalManager, type TerminalManagerShape } from "./terminal/Services/Manager.ts";
 import {
   BrowserTraceCollector,
@@ -253,6 +254,7 @@ const buildAppUnderTest = (options?: {
     gitCore?: Partial<GitCoreShape>;
     gitManager?: Partial<GitManagerShape>;
     projectSetupScriptRunner?: Partial<ProjectSetupScriptRunnerShape>;
+    spotlightSync?: Partial<SpotlightSyncShape>;
     terminalManager?: Partial<TerminalManagerShape>;
     orchestrationEngine?: Partial<OrchestrationEngineShape>;
     projectionSnapshotQuery?: Partial<ProjectionSnapshotQueryShape>;
@@ -347,6 +349,17 @@ const buildAppUnderTest = (options?: {
       Layer.provide(
         Layer.mock(TerminalManager)({
           ...options?.layers?.terminalManager,
+        }),
+      ),
+      Layer.provide(
+        Layer.mock(SpotlightSync)({
+          enable: () => Effect.void,
+          disable: () => Effect.void,
+          getStatus: (threadId) =>
+            Effect.succeed({ threadId, active: false, lastSyncedAt: null, error: null }),
+          disableAll: Effect.void,
+          subscribe: () => Effect.succeed(() => {}),
+          ...options?.layers?.spotlightSync,
         }),
       ),
       Layer.provide(
