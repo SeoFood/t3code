@@ -39,6 +39,21 @@ brew install --cask t3-code
 yay -S t3code-bin
 ```
 
+## Fork changes (vs upstream)
+
+### Multi-Server Support
+
+Connect to multiple T3 Code servers from a single app instance. Local and remote projects appear side by side in the sidebar.
+
+- **Settings > Servers** - Add, remove, and monitor remote server connections (name, URL, auth token)
+- **Server badges** - Remote projects show a small badge with the server name; offline servers are greyed out
+- **Server-aware project creation** - "Add project" shows a server picker when remote servers are configured
+- **Command routing** - Project and thread operations (delete, archive, rename, etc.) are routed to the correct server automatically
+- **Connection monitoring** - Toast notifications when remote servers go offline/online
+- **Independent reconnection** - Each server connection retries independently
+
+See [docs/plans/2026-04-06-multi-server-design.md](./docs/plans/2026-04-06-multi-server-design.md) for the full design document.
+
 ## Some notes
 
 We are very very early in this project. Expect bugs.
