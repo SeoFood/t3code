@@ -2,6 +2,7 @@ import { Effect } from "effect";
 import * as Schema from "effect/Schema";
 import * as SchemaTransformation from "effect/SchemaTransformation";
 import { TrimmedNonEmptyString, TrimmedString } from "./baseSchemas";
+import { RemoteServer } from "./remoteServer";
 import {
   ClaudeModelOptions,
   CodexModelOptions,
@@ -96,6 +97,7 @@ export const ServerSettings = Schema.Struct({
     claudeAgent: ClaudeSettings.pipe(Schema.withDecodingDefault(() => ({}))),
   }).pipe(Schema.withDecodingDefault(() => ({}))),
   observability: ObservabilitySettings.pipe(Schema.withDecodingDefault(() => ({}))),
+  remoteServers: Schema.Array(RemoteServer).pipe(Schema.withDecodingDefault(() => [])),
 });
 export type ServerSettings = typeof ServerSettings.Type;
 
@@ -179,5 +181,6 @@ export const ServerSettingsPatch = Schema.Struct({
       claudeAgent: Schema.optionalKey(ClaudeSettingsPatch),
     }),
   ),
+  remoteServers: Schema.optionalKey(Schema.Array(RemoteServer)),
 });
 export type ServerSettingsPatch = typeof ServerSettingsPatch.Type;
