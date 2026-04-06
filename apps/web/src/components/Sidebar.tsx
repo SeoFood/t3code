@@ -72,7 +72,7 @@ import {
   threadTraversalDirectionFromCommand,
 } from "../keybindings";
 import { gitStatusQueryOptions } from "../lib/gitReactQuery";
-import { readNativeApi } from "../nativeApi";
+import { dispatchCommandToServer, readNativeApi } from "../nativeApi";
 import { useComposerDraftStore } from "../composerDraftStore";
 import { useHandleNewThread } from "../hooks/useHandleNewThread";
 
@@ -1314,11 +1314,14 @@ export default function Sidebar() {
           clearComposerDraftForThread(projectDraftThread.threadId);
         }
         clearProjectDraftThreadId(projectId);
-        await api.orchestration.dispatchCommand({
-          type: "project.delete",
-          commandId: newCommandId(),
-          projectId,
-        });
+        await dispatchCommandToServer(
+          {
+            type: "project.delete",
+            commandId: newCommandId(),
+            projectId,
+          },
+          project.serverId,
+        );
       } catch (error) {
         const message = error instanceof Error ? error.message : "Unknown error removing project.";
         console.error("Failed to remove project", { projectId, error });
