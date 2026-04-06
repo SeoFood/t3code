@@ -128,9 +128,11 @@ import {
 import { SidebarUpdatePill } from "./sidebar/SidebarUpdatePill";
 import { useCopyToClipboard } from "~/hooks/useCopyToClipboard";
 import { useSettings, useUpdateSettings } from "~/hooks/useSettings";
-import { useServerKeybindings } from "../rpc/serverState";
+import { useServerConfig, useServerKeybindings } from "../rpc/serverState";
+import { serverConnectionRegistry } from "../rpc/serverConnectionRegistry";
 import { useSidebarThreadSummaryById } from "../storeSelectors";
 import type { Project } from "../types";
+import { LOCAL_SERVER_ID, type ServerId } from "@t3tools/contracts";
 const THREAD_PREVIEW_LIMIT = 6;
 const SIDEBAR_SORT_LABELS: Record<SidebarProjectSortOrder, string> = {
   updated_at: "Last user message",
@@ -148,6 +150,8 @@ const SIDEBAR_LIST_ANIMATION_OPTIONS = {
 
 type SidebarProjectSnapshot = Project & {
   expanded: boolean;
+  serverDisplayName: string | null;
+  isServerOnline: boolean;
 };
 interface TerminalStatusIndicator {
   label: "Terminal process running";
@@ -693,6 +697,7 @@ export default function Sidebar() {
   const appSettings = useSettings();
   const { updateSettings } = useUpdateSettings();
   const { activeDraftThread, activeThread, handleNewThread } = useHandleNewThread();
+  const serverConfig = useServerConfig();
   const { archiveThread, deleteThread } = useThreadActions();
   const routeThreadId = useParams({
     strict: false,
@@ -736,13 +741,25 @@ export default function Sidebar() {
       getId: (project) => project.id,
     });
   }, [projectOrder, projects]);
+  const resolveServerDisplayName = useCallback(
+    (serverId: ServerId): string | null => {
+      if (serverId === LOCAL_SERVER_ID) return null;
+      const remote = serverConfig?.settings.remoteServers?.find((s) => s.id === serverId);
+      return remote?.name ?? "Remote";
+    },
+    [serverConfig],
+  );
   const sidebarProjects = useMemo<SidebarProjectSnapshot[]>(
     () =>
       orderedProjects.map((project) => ({
         ...project,
         expanded: projectExpandedById[project.id] ?? true,
+        serverDisplayName: resolveServerDisplayName(project.serverId),
+        isServerOnline:
+          project.serverId === LOCAL_SERVER_ID ||
+          serverConnectionRegistry.isConnected(project.serverId),
       })),
-    [orderedProjects, projectExpandedById],
+    [orderedProjects, projectExpandedById, resolveServerDisplayName],
   );
   const sidebarThreads = useMemo(() => Object.values(sidebarThreadsById), [sidebarThreadsById]);
   const projectCwdById = useMemo(
@@ -1592,7 +1609,7 @@ export default function Sidebar() {
       isThreadListExpanded,
     } = renderedProject;
     return (
-      <>
+      <div className={!project.isServerOnline ? "pointer-events-none opacity-40" : undefined}>
         <div className="group/project-header relative">
           <SidebarMenuButton
             ref={isManualProjectSorting ? dragHandleProps?.setActivatorNodeRef : undefined}
@@ -1640,6 +1657,11 @@ export default function Sidebar() {
             <span className="flex-1 truncate text-xs font-medium text-foreground/90">
               {project.name}
             </span>
+            {project.serverDisplayName && (
+              <span className="ml-1 shrink-0 rounded bg-muted px-1 py-0.5 text-[10px] leading-none text-muted-foreground">
+                {project.serverDisplayName}
+              </span>
+            )}
           </SidebarMenuButton>
           <Tooltip>
             <TooltipTrigger
@@ -1779,7 +1801,7 @@ export default function Sidebar() {
             </SidebarMenuSubItem>
           )}
         </SidebarMenuSub>
-      </>
+      </div>
     );
   }
 
