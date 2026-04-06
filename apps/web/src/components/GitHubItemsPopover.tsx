@@ -8,27 +8,34 @@ import { useCallback, useEffect, useState } from "react";
 
 import { getWsRpcClient } from "~/wsRpcClient";
 import { Badge } from "./ui/badge";
-import { Popover, PopoverPopup, PopoverTrigger } from "./ui/popover";
+import {
+  Dialog,
+  DialogPanel,
+  DialogPopup,
+  DialogTitle,
+  DialogHeader,
+  DialogDescription,
+} from "./ui/dialog";
 import { Spinner } from "./ui/spinner";
 
 type GitHubTab = "issues" | "prs";
 
-interface GitHubItemsPopoverProps {
+interface GitHubItemsDialogProps {
   projectId: ProjectId;
+  projectName: string;
   cwd: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onThreadCreated: (threadId: ThreadId, branch: string, worktreePath: string) => void;
-  children: React.ReactNode;
 }
 
-export function GitHubItemsPopover({
+export function GitHubItemsDialog({
   cwd,
+  projectName,
   open,
   onOpenChange,
   onThreadCreated,
-  children,
-}: GitHubItemsPopoverProps) {
+}: GitHubItemsDialogProps) {
   const [activeTab, setActiveTab] = useState<GitHubTab>("issues");
   const [issues, setIssues] = useState<readonly GitHubIssueSummary[]>([]);
   const [pullRequests, setPullRequests] = useState<readonly GitHubPrListSummary[]>([]);
@@ -104,81 +111,89 @@ export function GitHubItemsPopover({
   );
 
   return (
-    <Popover open={open} onOpenChange={onOpenChange}>
-      <PopoverTrigger render={children as React.ReactElement} />
-      <PopoverPopup side="right" align="start" sideOffset={8} className="w-80">
-        <div className="space-y-3">
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
-                activeTab === "issues"
-                  ? "bg-accent text-accent-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-              onClick={() => setActiveTab("issues")}
-            >
-              Issues
-            </button>
-            <button
-              type="button"
-              className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
-                activeTab === "prs"
-                  ? "bg-accent text-accent-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-              onClick={() => setActiveTab("prs")}
-            >
-              Pull Requests
-            </button>
-          </div>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogPopup>
+        <DialogPanel className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>GitHub - {projectName}</DialogTitle>
+            <DialogDescription>Select an issue or PR to create a worktree thread</DialogDescription>
+          </DialogHeader>
 
-          {loading ? (
-            <div className="flex items-center justify-center py-6">
-              <Spinner className="size-4 text-muted-foreground" />
+          <div className="mt-4 space-y-3">
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+                  activeTab === "issues"
+                    ? "bg-accent text-accent-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+                onClick={() => setActiveTab("issues")}
+              >
+                Issues ({issues.length})
+              </button>
+              <button
+                type="button"
+                className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+                  activeTab === "prs"
+                    ? "bg-accent text-accent-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+                onClick={() => setActiveTab("prs")}
+              >
+                Pull Requests ({pullRequests.length})
+              </button>
             </div>
-          ) : error ? (
-            <p className="py-4 text-center text-destructive text-xs">{error}</p>
-          ) : activeTab === "issues" ? (
-            issues.length === 0 ? (
-              <p className="py-4 text-center text-muted-foreground text-xs">No open issues</p>
+
+            {loading ? (
+              <div className="flex items-center justify-center py-8">
+                <Spinner className="size-4 text-muted-foreground" />
+              </div>
+            ) : error ? (
+              <p className="py-4 text-center text-xs text-destructive">{error}</p>
+            ) : activeTab === "issues" ? (
+              issues.length === 0 ? (
+                <p className="py-6 text-center text-xs text-muted-foreground">No open issues</p>
+              ) : (
+                <div className="max-h-72 space-y-0.5 overflow-y-auto">
+                  {issues.map((issue) => (
+                    <GitHubItemRow
+                      key={issue.number}
+                      number={issue.number}
+                      title={issue.title}
+                      authorLogin={issue.author.login}
+                      labels={issue.labels}
+                      preparing={preparingItem === issue.number}
+                      disabled={preparingItem !== null}
+                      onClick={() => void handleIssueClick(issue)}
+                    />
+                  ))}
+                </div>
+              )
+            ) : pullRequests.length === 0 ? (
+              <p className="py-6 text-center text-xs text-muted-foreground">
+                No open pull requests
+              </p>
             ) : (
-              <div className="max-h-64 space-y-0.5 overflow-y-auto">
-                {issues.map((issue) => (
+              <div className="max-h-72 space-y-0.5 overflow-y-auto">
+                {pullRequests.map((pr) => (
                   <GitHubItemRow
-                    key={issue.number}
-                    number={issue.number}
-                    title={issue.title}
-                    authorLogin={issue.author.login}
-                    labels={issue.labels}
-                    preparing={preparingItem === issue.number}
+                    key={pr.number}
+                    number={pr.number}
+                    title={pr.title}
+                    authorLogin={pr.author.login}
+                    labels={pr.labels}
+                    preparing={preparingItem === pr.number}
                     disabled={preparingItem !== null}
-                    onClick={() => void handleIssueClick(issue)}
+                    onClick={() => void handlePrClick(pr)}
                   />
                 ))}
               </div>
-            )
-          ) : pullRequests.length === 0 ? (
-            <p className="py-4 text-center text-muted-foreground text-xs">No open pull requests</p>
-          ) : (
-            <div className="max-h-64 space-y-0.5 overflow-y-auto">
-              {pullRequests.map((pr) => (
-                <GitHubItemRow
-                  key={pr.number}
-                  number={pr.number}
-                  title={pr.title}
-                  authorLogin={pr.author.login}
-                  labels={pr.labels}
-                  preparing={preparingItem === pr.number}
-                  disabled={preparingItem !== null}
-                  onClick={() => void handlePrClick(pr)}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      </PopoverPopup>
-    </Popover>
+            )}
+          </div>
+        </DialogPanel>
+      </DialogPopup>
+    </Dialog>
   );
 }
 

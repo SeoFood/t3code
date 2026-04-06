@@ -10,7 +10,7 @@ import {
   TerminalIcon,
   TriangleAlertIcon,
 } from "lucide-react";
-import { GitHubItemsPopover } from "./GitHubItemsPopover";
+import { GitHubItemsDialog } from "./GitHubItemsPopover";
 import { ProjectFavicon } from "./ProjectFavicon";
 import { autoAnimate } from "@formkit/auto-animate";
 import {
@@ -1658,33 +1658,32 @@ export default function Sidebar() {
               </span>
             )}
           </SidebarMenuButton>
-          <GitHubItemsPopover
-            projectId={project.id}
-            cwd={project.cwd}
-            open={githubPopoverProjectId === project.id}
-            onOpenChange={(nextOpen) => {
-              setGithubPopoverProjectId(nextOpen ? project.id : null);
-            }}
-            onThreadCreated={(_threadId, branch, worktreePath) => {
-              void handleNewThread(project.id, {
-                branch,
-                worktreePath,
-                envMode: "worktree",
-              });
-            }}
-          >
-            <button
-              type="button"
-              className="absolute top-1.5 right-8 flex size-4 items-center justify-center rounded p-0 text-muted-foreground/40 hover:bg-secondary hover:text-foreground"
-              aria-label={`GitHub issues and PRs for ${project.name}`}
-              onClick={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-              }}
-            >
-              <GitPullRequestIcon className="size-3" />
-            </button>
-          </GitHubItemsPopover>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <SidebarMenuAction
+                  render={
+                    <button
+                      type="button"
+                      aria-label={`GitHub issues and PRs for ${project.name}`}
+                    />
+                  }
+                  showOnHover
+                  className="top-1 right-8 size-5 rounded-md p-0 text-muted-foreground/70 hover:bg-secondary hover:text-foreground"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    setGithubPopoverProjectId(
+                      githubPopoverProjectId === project.id ? null : project.id,
+                    );
+                  }}
+                >
+                  <GitPullRequestIcon className="size-3.5" />
+                </SidebarMenuAction>
+              }
+            />
+            <TooltipPopup side="top">GitHub issues & PRs</TooltipPopup>
+          </Tooltip>
           <Tooltip>
             <TooltipTrigger
               render={
@@ -2260,6 +2259,30 @@ export default function Sidebar() {
           </SidebarFooter>
         </>
       )}
+
+      {githubPopoverProjectId != null &&
+        (() => {
+          const project = projects.find((p) => p.id === githubPopoverProjectId);
+          if (!project) return null;
+          return (
+            <GitHubItemsDialog
+              projectId={project.id}
+              projectName={project.name}
+              cwd={project.cwd}
+              open
+              onOpenChange={(nextOpen) => {
+                if (!nextOpen) setGithubPopoverProjectId(null);
+              }}
+              onThreadCreated={(_threadId, branch, worktreePath) => {
+                void handleNewThread(project.id, {
+                  branch,
+                  worktreePath,
+                  envMode: "worktree",
+                });
+              }}
+            />
+          );
+        })()}
     </>
   );
 }

@@ -39,6 +39,57 @@ brew install --cask t3-code
 yay -S t3code-bin
 ```
 
+## Upstream features
+
+These features come from upstream T3 Code and are not fork-specific.
+
+### Session & Conversation
+
+- Thread management - create, delete, archive, unarchive, rename
+- Model selection for Codex (gpt-5.4, gpt-5.3-codex) and Claude (opus-4-6, sonnet-4-6, haiku-4-5) with custom model support
+- Streaming messages with markdown rendering and syntax highlighting
+- Image attachments in messages
+- Checkpointing - full diff snapshots after each turn, revert to any checkpoint
+- Approval policies (untrusted, on-failure, on-request, never)
+- User approval flow for file changes, terminal commands, and input prompts
+- Context window meter showing token usage
+
+### Git Integration (upstream)
+
+- Branch listing, creation, checkout
+- Git status with working tree changes, ahead/behind counts, PR association
+- Pull operations (sync with upstream)
+- Worktree creation and removal
+- Real-time git status streaming over WebSocket (auto-refresh on changes)
+- Stacked git actions with progress streaming:
+  - `commit`, `push`, `create_pr`, `commit_push`, `commit_push_pr`
+  - Real-time hook output visibility
+  - Toast notifications with action links (open PR, retry)
+
+### Terminal
+
+- Integrated terminal sessions per thread
+- Multiple terminals with split support
+- Custom environment variables
+- Worktree-aware working directory
+- Keyboard shortcuts (toggle, split, new, close)
+
+### Settings
+
+- Theme (light/dark/system)
+- Timestamp format, sidebar sort order
+- Provider configuration (binary paths, custom models, status indicators)
+- Customizable keybindings via `~/.t3/keybindings.json`
+- Observability (OpenTelemetry traces and metrics URLs)
+
+### Desktop App (upstream)
+
+- Electron-based cross-platform client
+- Auto-updater with download progress and install workflow
+- Native file picker, context menus, external link handling
+- Shell environment variable sync
+- `t3://` deep link protocol
+
 ## Fork changes (vs upstream)
 
 ### Multi-Server Support
@@ -54,7 +105,19 @@ Connect to multiple T3 Code servers from a single app instance. Local and remote
 
 See [docs/plans/2026-04-06-multi-server-design.md](./docs/plans/2026-04-06-multi-server-design.md) for the full design document.
 
-### Spotlight Sync Fix
+### GitHub Issues & PRs Dialog
+
+Browse GitHub issues and pull requests directly from the sidebar and create worktree-backed threads from them.
+
+- **Sidebar button** - Click the git icon on any project to open the GitHub dialog
+- **Issues tab** - Lists open issues with author, labels, and issue number
+- **Pull Requests tab** - Lists open PRs with the same detail
+- **One-click worktree creation** - Selecting an issue creates a branch (`t3code/issue-N/slug`) and worktree automatically
+- **Existing worktree detection** - If the issue already has a worktree, opens it instead of failing
+- **PR checkout** - Selecting a PR checks out the branch in a worktree or locally
+- **GitHub CLI auth** - Uses `gh` CLI for authentication; shows clear error message if not logged in
+
+### Spotlight Sync
 
 Spotlight syncs file changes from a worktree back to the repo root directory, enabling hot-reloading in external tools (Xcode, dev servers, etc.).
 

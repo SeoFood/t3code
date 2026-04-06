@@ -1588,6 +1588,28 @@ export const makeGitManager = Effect.fn("makeGitManager")(function* () {
           .slice(0, 40);
         const branch = `t3code/issue-${input.issueNumber}/${slug}`;
 
+        // Check if a worktree already exists for this branch
+        const existingBranch = yield* gitCore
+          .listBranches({ cwd: input.cwd })
+          .pipe(
+            Effect.map((result) =>
+              result.branches.find(
+                (b) =>
+                  !b.isRemote &&
+                  b.name === branch &&
+                  b.worktreePath !== null &&
+                  canonicalizeExistingPath(b.worktreePath) !== canonicalizeExistingPath(input.cwd),
+              ),
+            ),
+          );
+
+        if (existingBranch?.worktreePath) {
+          return {
+            branch,
+            worktreePath: existingBranch.worktreePath,
+          };
+        }
+
         // Create the branch from current HEAD
         yield* gitCore
           .execute({
