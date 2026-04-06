@@ -42,8 +42,9 @@ class ServerConnectionRegistryImpl {
       return this.connections.get(key)!.client;
     }
     const wsProtocol = server.url.startsWith("https") ? "wss" : "ws";
+    const searchParams = server.authToken ? { token: server.authToken } : undefined;
     const transport = new WsTransport(
-      resolveServerUrl({ url: server.url, protocol: wsProtocol, pathname: "/ws" }),
+      resolveServerUrl({ url: server.url, protocol: wsProtocol, pathname: "/ws", searchParams }),
     );
     const client = createWsRpcClient(transport);
     this.connections.set(key, {
