@@ -2,7 +2,7 @@ import * as Schema from "effect/Schema";
 
 import { TrimmedNonEmptyString } from "./baseSchemas";
 
-export const RemoteServerId = Schema.String.pipe(Schema.brand("RemoteServerId"));
+export const RemoteServerId = TrimmedNonEmptyString.pipe(Schema.brand("RemoteServerId"));
 export type RemoteServerId = typeof RemoteServerId.Type;
 
 export const ServerId = Schema.Union([Schema.Literal("local"), RemoteServerId]);
