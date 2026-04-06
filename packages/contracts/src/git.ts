@@ -272,6 +272,61 @@ export const GitPullResult = Schema.Struct({
 });
 export type GitPullResult = typeof GitPullResult.Type;
 
+// GitHub Issue/PR listing
+
+export const GitHubIssueSummary = Schema.Struct({
+  number: PositiveInt,
+  title: TrimmedNonEmptyStringSchema,
+  body: Schema.String,
+  author: Schema.Struct({ login: TrimmedNonEmptyStringSchema }),
+  labels: Schema.Array(Schema.Struct({ name: TrimmedNonEmptyStringSchema })),
+});
+export type GitHubIssueSummary = typeof GitHubIssueSummary.Type;
+
+export const GitHubPrListSummary = Schema.Struct({
+  number: PositiveInt,
+  title: TrimmedNonEmptyStringSchema,
+  body: Schema.String,
+  headRefName: TrimmedNonEmptyStringSchema,
+  author: Schema.Struct({ login: TrimmedNonEmptyStringSchema }),
+  labels: Schema.Array(Schema.Struct({ name: TrimmedNonEmptyStringSchema })),
+});
+export type GitHubPrListSummary = typeof GitHubPrListSummary.Type;
+
+export const GitHubListIssuesInput = Schema.Struct({
+  cwd: TrimmedNonEmptyStringSchema,
+});
+export type GitHubListIssuesInput = typeof GitHubListIssuesInput.Type;
+
+export const GitHubListIssuesResult = Schema.Struct({
+  issues: Schema.Array(GitHubIssueSummary),
+});
+export type GitHubListIssuesResult = typeof GitHubListIssuesResult.Type;
+
+export const GitHubListPullRequestsInput = Schema.Struct({
+  cwd: TrimmedNonEmptyStringSchema,
+});
+export type GitHubListPullRequestsInput = typeof GitHubListPullRequestsInput.Type;
+
+export const GitHubListPullRequestsResult = Schema.Struct({
+  pullRequests: Schema.Array(GitHubPrListSummary),
+});
+export type GitHubListPullRequestsResult = typeof GitHubListPullRequestsResult.Type;
+
+export const GitPrepareIssueThreadInput = Schema.Struct({
+  cwd: TrimmedNonEmptyStringSchema,
+  issueNumber: PositiveInt,
+  issueTitle: TrimmedNonEmptyStringSchema,
+  threadId: Schema.optional(ThreadId),
+});
+export type GitPrepareIssueThreadInput = typeof GitPrepareIssueThreadInput.Type;
+
+export const GitPrepareIssueThreadResult = Schema.Struct({
+  branch: TrimmedNonEmptyStringSchema,
+  worktreePath: TrimmedNonEmptyStringSchema,
+});
+export type GitPrepareIssueThreadResult = typeof GitPrepareIssueThreadResult.Type;
+
 // RPC / domain errors
 export class GitCommandError extends Schema.TaggedErrorClass<GitCommandError>()("GitCommandError", {
   operation: Schema.String,

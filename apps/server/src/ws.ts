@@ -4,6 +4,7 @@ import {
   EventId,
   type OrchestrationCommand,
   type GitActionProgressEvent,
+  GitHubCliError,
   type GitManagerServiceError,
   OrchestrationDispatchCommandError,
   type OrchestrationEvent,
@@ -630,6 +631,28 @@ const WsRpcLayer = WsRpcGroup.toLayer(
         }),
       [WS_METHODS.gitInit]: (input) =>
         observeRpcEffect(WS_METHODS.gitInit, git.initRepo(input), { "rpc.aggregate": "git" }),
+      [WS_METHODS.githubListIssues]: (_input) =>
+        observeRpcEffect(
+          WS_METHODS.githubListIssues,
+          Effect.fail(new GitHubCliError({ operation: "listIssues", detail: "Not implemented" })),
+          { "rpc.aggregate": "git" },
+        ),
+      [WS_METHODS.githubListPullRequests]: (_input) =>
+        observeRpcEffect(
+          WS_METHODS.githubListPullRequests,
+          Effect.fail(
+            new GitHubCliError({ operation: "listPullRequests", detail: "Not implemented" }),
+          ),
+          { "rpc.aggregate": "git" },
+        ),
+      [WS_METHODS.gitPrepareIssueThread]: (_input) =>
+        observeRpcEffect(
+          WS_METHODS.gitPrepareIssueThread,
+          Effect.fail(
+            new GitHubCliError({ operation: "prepareIssueThread", detail: "Not implemented" }),
+          ),
+          { "rpc.aggregate": "git" },
+        ),
       [WS_METHODS.terminalOpen]: (input) =>
         observeRpcEffect(WS_METHODS.terminalOpen, terminalManager.open(input), {
           "rpc.aggregate": "terminal",

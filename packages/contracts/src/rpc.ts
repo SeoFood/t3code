@@ -10,12 +10,19 @@ import {
   GitCreateBranchInput,
   GitCreateWorktreeInput,
   GitCreateWorktreeResult,
+  GitHubCliError,
+  GitHubListIssuesInput,
+  GitHubListIssuesResult,
+  GitHubListPullRequestsInput,
+  GitHubListPullRequestsResult,
   GitInitInput,
   GitListBranchesInput,
   GitListBranchesResult,
   GitManagerServiceError,
   GitPreparePullRequestThreadInput,
   GitPreparePullRequestThreadResult,
+  GitPrepareIssueThreadInput,
+  GitPrepareIssueThreadResult,
   GitPullInput,
   GitPullRequestRefInput,
   GitPullResult,
@@ -101,6 +108,11 @@ export const WS_METHODS = {
   gitInit: "git.init",
   gitResolvePullRequest: "git.resolvePullRequest",
   gitPreparePullRequestThread: "git.preparePullRequestThread",
+
+  // GitHub methods
+  githubListIssues: "github.listIssues",
+  githubListPullRequests: "github.listPullRequests",
+  gitPrepareIssueThread: "git.prepareIssueThread",
 
   // Terminal methods
   terminalOpen: "terminal.open",
@@ -237,6 +249,24 @@ export const WsGitCheckoutRpc = Rpc.make(WS_METHODS.gitCheckout, {
 export const WsGitInitRpc = Rpc.make(WS_METHODS.gitInit, {
   payload: GitInitInput,
   error: GitCommandError,
+});
+
+export const WsGitHubListIssuesRpc = Rpc.make(WS_METHODS.githubListIssues, {
+  payload: GitHubListIssuesInput,
+  success: GitHubListIssuesResult,
+  error: GitHubCliError,
+});
+
+export const WsGitHubListPullRequestsRpc = Rpc.make(WS_METHODS.githubListPullRequests, {
+  payload: GitHubListPullRequestsInput,
+  success: GitHubListPullRequestsResult,
+  error: GitHubCliError,
+});
+
+export const WsGitPrepareIssueThreadRpc = Rpc.make(WS_METHODS.gitPrepareIssueThread, {
+  payload: GitPrepareIssueThreadInput,
+  success: GitPrepareIssueThreadResult,
+  error: GitManagerServiceError,
 });
 
 export const WsTerminalOpenRpc = Rpc.make(WS_METHODS.terminalOpen, {
@@ -379,6 +409,9 @@ export const WsRpcGroup = RpcGroup.make(
   WsGitCreateBranchRpc,
   WsGitCheckoutRpc,
   WsGitInitRpc,
+  WsGitHubListIssuesRpc,
+  WsGitHubListPullRequestsRpc,
+  WsGitPrepareIssueThreadRpc,
   WsTerminalOpenRpc,
   WsTerminalWriteRpc,
   WsTerminalResizeRpc,
