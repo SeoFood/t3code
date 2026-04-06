@@ -116,7 +116,7 @@ import {
 } from "~/projectScripts";
 import { SidebarTrigger } from "./ui/sidebar";
 import { newCommandId, newMessageId, newThreadId } from "~/lib/utils";
-import { readNativeApi } from "~/nativeApi";
+import { dispatchCommandToServer, readNativeApi } from "~/nativeApi";
 import {
   getProviderModelCapabilities,
   getProviderModels,
@@ -1855,15 +1855,15 @@ export default function ChatView({ threadId }: ChatViewProps) {
       keybinding?: string | null;
       keybindingCommand: KeybindingCommand;
     }) => {
-      const api = readNativeApi();
-      if (!api) return;
-
-      await api.orchestration.dispatchCommand({
-        type: "project.meta.update",
-        commandId: newCommandId(),
-        projectId: input.projectId,
-        scripts: input.nextScripts,
-      });
+      await dispatchCommandToServer(
+        {
+          type: "project.meta.update",
+          commandId: newCommandId(),
+          projectId: input.projectId,
+          scripts: input.nextScripts,
+        },
+        activeProject?.serverId,
+      );
 
       const keybindingRule = decodeProjectScriptKeybindingRule({
         keybinding: input.keybinding,
@@ -1871,10 +1871,11 @@ export default function ChatView({ threadId }: ChatViewProps) {
       });
 
       if (isElectron && keybindingRule) {
-        await api.server.upsertKeybinding(keybindingRule);
+        const api = readNativeApi();
+        if (api) await api.server.upsertKeybinding(keybindingRule);
       }
     },
-    [],
+    [activeProject?.serverId],
   );
   const saveProjectScript = useCallback(
     async (input: NewProjectScriptInput) => {
@@ -2045,10 +2046,6 @@ export default function ChatView({ threadId }: ChatViewProps) {
       if (!serverThread) {
         return;
       }
-      const api = readNativeApi();
-      if (!api) {
-        return;
-      }
 
       if (
         input.modelSelection !== undefined &&
@@ -2057,32 +2054,41 @@ export default function ChatView({ threadId }: ChatViewProps) {
           JSON.stringify(input.modelSelection.options ?? null) !==
             JSON.stringify(serverThread.modelSelection.options ?? null))
       ) {
-        await api.orchestration.dispatchCommand({
-          type: "thread.meta.update",
-          commandId: newCommandId(),
-          threadId: input.threadId,
-          modelSelection: input.modelSelection,
-        });
+        await dispatchCommandToServer(
+          {
+            type: "thread.meta.update",
+            commandId: newCommandId(),
+            threadId: input.threadId,
+            modelSelection: input.modelSelection,
+          },
+          serverThread.serverId,
+        );
       }
 
       if (input.runtimeMode !== serverThread.runtimeMode) {
-        await api.orchestration.dispatchCommand({
-          type: "thread.runtime-mode.set",
-          commandId: newCommandId(),
-          threadId: input.threadId,
-          runtimeMode: input.runtimeMode,
-          createdAt: input.createdAt,
-        });
+        await dispatchCommandToServer(
+          {
+            type: "thread.runtime-mode.set",
+            commandId: newCommandId(),
+            threadId: input.threadId,
+            runtimeMode: input.runtimeMode,
+            createdAt: input.createdAt,
+          },
+          serverThread.serverId,
+        );
       }
 
       if (input.interactionMode !== serverThread.interactionMode) {
-        await api.orchestration.dispatchCommand({
-          type: "thread.interaction-mode.set",
-          commandId: newCommandId(),
-          threadId: input.threadId,
-          interactionMode: input.interactionMode,
-          createdAt: input.createdAt,
-        });
+        await dispatchCommandToServer(
+          {
+            type: "thread.interaction-mode.set",
+            commandId: newCommandId(),
+            threadId: input.threadId,
+            interactionMode: input.interactionMode,
+            createdAt: input.createdAt,
+          },
+          serverThread.serverId,
+        );
       }
     },
     [serverThread],
@@ -2852,13 +2858,16 @@ export default function ChatView({ threadId }: ChatViewProps) {
       setIsRevertingCheckpoint(true);
       setThreadError(activeThread.id, null);
       try {
-        await api.orchestration.dispatchCommand({
-          type: "thread.checkpoint.revert",
-          commandId: newCommandId(),
-          threadId: activeThread.id,
-          turnCount,
-          createdAt: new Date().toISOString(),
-        });
+        await dispatchCommandToServer(
+          {
+            type: "thread.checkpoint.revert",
+            commandId: newCommandId(),
+            threadId: activeThread.id,
+            turnCount,
+            createdAt: new Date().toISOString(),
+          },
+          activeThread.serverId,
+        );
       } catch (err) {
         setThreadError(
           activeThread.id,
@@ -3051,12 +3060,15 @@ export default function ChatView({ threadId }: ChatViewProps) {
 
       // Auto-title from first message
       if (isFirstMessage && isServerThread) {
-        await api.orchestration.dispatchCommand({
-          type: "thread.meta.update",
-          commandId: newCommandId(),
-          threadId: threadIdForSend,
-          title,
-        });
+        await dispatchCommandToServer(
+          {
+            type: "thread.meta.update",
+            commandId: newCommandId(),
+            threadId: threadIdForSend,
+            title,
+          },
+          activeThread.serverId,
+        );
       }
 
       if (isServerThread) {
@@ -3100,23 +3112,26 @@ export default function ChatView({ threadId }: ChatViewProps) {
             }
           : undefined;
       beginLocalDispatch({ preparingWorktree: false });
-      await api.orchestration.dispatchCommand({
-        type: "thread.turn.start",
-        commandId: newCommandId(),
-        threadId: threadIdForSend,
-        message: {
-          messageId: messageIdForSend,
-          role: "user",
-          text: outgoingMessageText,
-          attachments: turnAttachments,
+      await dispatchCommandToServer(
+        {
+          type: "thread.turn.start",
+          commandId: newCommandId(),
+          threadId: threadIdForSend,
+          message: {
+            messageId: messageIdForSend,
+            role: "user",
+            text: outgoingMessageText,
+            attachments: turnAttachments,
+          },
+          modelSelection: selectedModelSelection,
+          titleSeed: title,
+          runtimeMode,
+          interactionMode,
+          ...(bootstrap ? { bootstrap } : {}),
+          createdAt: messageCreatedAt,
         },
-        modelSelection: selectedModelSelection,
-        titleSeed: title,
-        runtimeMode,
-        interactionMode,
-        ...(bootstrap ? { bootstrap } : {}),
-        createdAt: messageCreatedAt,
-      });
+        activeThread.serverId,
+      );
       turnStartSucceeded = true;
     })().catch(async (err: unknown) => {
       if (
@@ -3152,70 +3167,72 @@ export default function ChatView({ threadId }: ChatViewProps) {
   };
 
   const onInterrupt = async () => {
-    const api = readNativeApi();
-    if (!api || !activeThread) return;
-    await api.orchestration.dispatchCommand({
-      type: "thread.turn.interrupt",
-      commandId: newCommandId(),
-      threadId: activeThread.id,
-      createdAt: new Date().toISOString(),
-    });
+    if (!activeThread) return;
+    await dispatchCommandToServer(
+      {
+        type: "thread.turn.interrupt",
+        commandId: newCommandId(),
+        threadId: activeThread.id,
+        createdAt: new Date().toISOString(),
+      },
+      activeThread.serverId,
+    );
   };
 
   const onRespondToApproval = useCallback(
     async (requestId: ApprovalRequestId, decision: ProviderApprovalDecision) => {
-      const api = readNativeApi();
-      if (!api || !activeThreadId) return;
+      if (!activeThreadId) return;
 
       setRespondingRequestIds((existing) =>
         existing.includes(requestId) ? existing : [...existing, requestId],
       );
-      await api.orchestration
-        .dispatchCommand({
+      await dispatchCommandToServer(
+        {
           type: "thread.approval.respond",
           commandId: newCommandId(),
           threadId: activeThreadId,
           requestId,
           decision,
           createdAt: new Date().toISOString(),
-        })
-        .catch((err: unknown) => {
-          setThreadError(
-            activeThreadId,
-            err instanceof Error ? err.message : "Failed to submit approval decision.",
-          );
-        });
+        },
+        activeThread?.serverId,
+      ).catch((err: unknown) => {
+        setThreadError(
+          activeThreadId,
+          err instanceof Error ? err.message : "Failed to submit approval decision.",
+        );
+      });
       setRespondingRequestIds((existing) => existing.filter((id) => id !== requestId));
     },
-    [activeThreadId, setThreadError],
+    [activeThreadId, activeThread?.serverId, setThreadError],
   );
 
   const onRespondToUserInput = useCallback(
     async (requestId: ApprovalRequestId, answers: Record<string, unknown>) => {
-      const api = readNativeApi();
-      if (!api || !activeThreadId) return;
+      if (!activeThreadId) return;
 
       setRespondingUserInputRequestIds((existing) =>
         existing.includes(requestId) ? existing : [...existing, requestId],
       );
-      await api.orchestration
-        .dispatchCommand({
+      await dispatchCommandToServer(
+        {
           type: "thread.user-input.respond",
           commandId: newCommandId(),
           threadId: activeThreadId,
           requestId,
           answers,
           createdAt: new Date().toISOString(),
-        })
-        .catch((err: unknown) => {
-          setThreadError(
-            activeThreadId,
-            err instanceof Error ? err.message : "Failed to submit user input.",
-          );
-        });
+        },
+        activeThread?.serverId,
+      ).catch((err: unknown) => {
+        setThreadError(
+          activeThreadId,
+          err instanceof Error ? err.message : "Failed to submit user input.",
+        );
+      });
       setRespondingUserInputRequestIds((existing) => existing.filter((id) => id !== requestId));
     },
-    [activeThreadId, setThreadError],
+    [activeThreadId, activeThread?.serverId, setThreadError],
   );
 
   const setActivePendingUserInputQuestionIndex = useCallback(
@@ -3374,30 +3391,33 @@ export default function ChatView({ threadId }: ChatViewProps) {
         // while the same-thread implementation turn is starting.
         setComposerDraftInteractionMode(threadIdForSend, nextInteractionMode);
 
-        await api.orchestration.dispatchCommand({
-          type: "thread.turn.start",
-          commandId: newCommandId(),
-          threadId: threadIdForSend,
-          message: {
-            messageId: messageIdForSend,
-            role: "user",
-            text: outgoingMessageText,
-            attachments: [],
+        await dispatchCommandToServer(
+          {
+            type: "thread.turn.start",
+            commandId: newCommandId(),
+            threadId: threadIdForSend,
+            message: {
+              messageId: messageIdForSend,
+              role: "user",
+              text: outgoingMessageText,
+              attachments: [],
+            },
+            modelSelection: selectedModelSelection,
+            titleSeed: activeThread.title,
+            runtimeMode,
+            interactionMode: nextInteractionMode,
+            ...(nextInteractionMode === "default" && activeProposedPlan
+              ? {
+                  sourceProposedPlan: {
+                    threadId: activeThread.id,
+                    planId: activeProposedPlan.id,
+                  },
+                }
+              : {}),
+            createdAt: messageCreatedAt,
           },
-          modelSelection: selectedModelSelection,
-          titleSeed: activeThread.title,
-          runtimeMode,
-          interactionMode: nextInteractionMode,
-          ...(nextInteractionMode === "default" && activeProposedPlan
-            ? {
-                sourceProposedPlan: {
-                  threadId: activeThread.id,
-                  planId: activeProposedPlan.id,
-                },
-              }
-            : {}),
-          createdAt: messageCreatedAt,
-        });
+          activeThread.serverId,
+        );
         // Optimistically open the plan sidebar when implementing (not refining).
         // "default" mode here means the agent is executing the plan, which produces
         // step-tracking activities that the sidebar will display.
@@ -3475,8 +3495,9 @@ export default function ChatView({ threadId }: ChatViewProps) {
       resetLocalDispatch();
     };
 
-    await api.orchestration
-      .dispatchCommand({
+    const serverIdForDispatch = activeProject.serverId;
+    await dispatchCommandToServer(
+      {
         type: "thread.create",
         commandId: newCommandId(),
         threadId: nextThreadId,
@@ -3488,28 +3509,33 @@ export default function ChatView({ threadId }: ChatViewProps) {
         branch: activeThread.branch,
         worktreePath: activeThread.worktreePath,
         createdAt,
-      })
+      },
+      serverIdForDispatch,
+    )
       .then(() => {
-        return api.orchestration.dispatchCommand({
-          type: "thread.turn.start",
-          commandId: newCommandId(),
-          threadId: nextThreadId,
-          message: {
-            messageId: newMessageId(),
-            role: "user",
-            text: outgoingImplementationPrompt,
-            attachments: [],
+        return dispatchCommandToServer(
+          {
+            type: "thread.turn.start",
+            commandId: newCommandId(),
+            threadId: nextThreadId,
+            message: {
+              messageId: newMessageId(),
+              role: "user",
+              text: outgoingImplementationPrompt,
+              attachments: [],
+            },
+            modelSelection: selectedModelSelection,
+            titleSeed: nextThreadTitle,
+            runtimeMode,
+            interactionMode: "default",
+            sourceProposedPlan: {
+              threadId: activeThread.id,
+              planId: activeProposedPlan.id,
+            },
+            createdAt,
           },
-          modelSelection: selectedModelSelection,
-          titleSeed: nextThreadTitle,
-          runtimeMode,
-          interactionMode: "default",
-          sourceProposedPlan: {
-            threadId: activeThread.id,
-            planId: activeProposedPlan.id,
-          },
-          createdAt,
-        });
+          serverIdForDispatch,
+        );
       })
       .then(() => {
         return waitForStartedServerThread(nextThreadId);
@@ -3523,13 +3549,14 @@ export default function ChatView({ threadId }: ChatViewProps) {
         });
       })
       .catch(async (err) => {
-        await api.orchestration
-          .dispatchCommand({
+        await dispatchCommandToServer(
+          {
             type: "thread.delete",
             commandId: newCommandId(),
             threadId: nextThreadId,
-          })
-          .catch(() => undefined);
+          },
+          serverIdForDispatch,
+        ).catch(() => undefined);
         toastManager.add({
           type: "error",
           title: "Could not start implementation thread",
