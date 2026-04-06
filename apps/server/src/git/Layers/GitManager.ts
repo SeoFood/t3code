@@ -1491,6 +1491,68 @@ export const makeGitManager = Effect.fn("makeGitManager")(function* () {
     }).pipe(Effect.ensuring(invalidateStatusResultCache(input.cwd)));
   });
 
+  const prepareIssueThread: GitManagerShape["prepareIssueThread"] = Effect.fn("prepareIssueThread")(
+    function* (input) {
+      const maybeRunSetupScript = (worktreePath: string) => {
+        if (!input.threadId) {
+          return Effect.void;
+        }
+        return projectSetupScriptRunner
+          .runForThread({
+            threadId: input.threadId,
+            projectCwd: input.cwd,
+            worktreePath,
+          })
+          .pipe(
+            Effect.catch((error) =>
+              Effect.logWarning(
+                `GitManager.prepareIssueThread: failed to launch worktree setup script for thread ${input.threadId} in ${worktreePath}: ${error.message}`,
+              ).pipe(Effect.asVoid),
+            ),
+          );
+      };
+
+      return yield* Effect.gen(function* () {
+        // Slugify the issue title for branch name
+        const slug = input.issueTitle
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-|-$/g, "")
+          .slice(0, 40);
+        const branch = `t3code/issue-${input.issueNumber}/${slug}`;
+
+        // Create the branch from current HEAD
+        yield* gitCore
+          .execute({
+            operation: "createBranch",
+            cwd: input.cwd,
+            args: ["branch", branch],
+          })
+          .pipe(
+            Effect.catch(
+              () =>
+                // Branch may already exist - that's fine
+                Effect.void,
+            ),
+          );
+
+        // Create worktree
+        const worktree = yield* gitCore.createWorktree({
+          cwd: input.cwd,
+          branch,
+          path: null,
+        });
+
+        yield* maybeRunSetupScript(worktree.worktree.path);
+
+        return {
+          branch: worktree.worktree.branch,
+          worktreePath: worktree.worktree.path,
+        };
+      }).pipe(Effect.ensuring(invalidateStatusResultCache(input.cwd)));
+    },
+  );
+
   const runFeatureBranchStep = Effect.fn("runFeatureBranchStep")(function* (
     modelSelection: ModelSelection,
     cwd: string,
@@ -1710,6 +1772,7 @@ export const makeGitManager = Effect.fn("makeGitManager")(function* () {
     status,
     resolvePullRequest,
     preparePullRequestThread,
+    prepareIssueThread,
     runStackedAction,
   } satisfies GitManagerShape;
 });

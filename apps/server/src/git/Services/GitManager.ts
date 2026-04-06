@@ -8,6 +8,8 @@
  */
 import {
   GitActionProgressEvent,
+  GitPrepareIssueThreadInput,
+  GitPrepareIssueThreadResult,
   GitPreparePullRequestThreadInput,
   GitPreparePullRequestThreadResult,
   GitPullRequestRefInput,
@@ -54,6 +56,13 @@ export interface GitManagerShape {
   readonly preparePullRequestThread: (
     input: GitPreparePullRequestThreadInput,
   ) => Effect.Effect<GitPreparePullRequestThreadResult, GitManagerServiceError>;
+
+  /**
+   * Prepare a new thread workspace from a GitHub issue - creates a branch and worktree.
+   */
+  readonly prepareIssueThread: (
+    input: GitPrepareIssueThreadInput,
+  ) => Effect.Effect<GitPrepareIssueThreadResult, GitManagerServiceError>;
 
   /**
    * Run a Git action (`commit`, `push`, `create_pr`, `commit_push`, `commit_push_pr`).
