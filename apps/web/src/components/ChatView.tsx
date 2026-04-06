@@ -27,7 +27,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { useQuery } from "@tanstack/react-query";
 import { useDebouncedValue } from "@tanstack/react-pacer";
 import { useNavigate, useSearch } from "@tanstack/react-router";
-import { gitStatusQueryOptions } from "~/lib/gitReactQuery";
+import { useGitStatus } from "~/lib/gitStatusState";
 import { projectSearchEntriesQueryOptions } from "~/lib/projectReactQuery";
 import { isElectron } from "../env";
 import { parseDiffRouteSearch, stripDiffSearchParams } from "../diffRouteSearch";
@@ -486,7 +486,11 @@ function PersistentThreadTerminalDrawer({
     if (!api) return;
     const targetDir = spotlightActive ? project.cwd : (worktreePath ?? project.cwd);
     for (const tid of terminalState.terminalIds) {
-      void api.terminal.write({ threadId, terminalId: tid, data: `cd ${JSON.stringify(targetDir)}\n` });
+      void api.terminal.write({
+        threadId,
+        terminalId: tid,
+        data: `cd ${JSON.stringify(targetDir)}\n`,
+      });
     }
   }, [spotlightActive, project, worktreePath, threadId, terminalState.terminalIds]);
 
@@ -1419,7 +1423,7 @@ export default function ChatView({ threadId }: ChatViewProps) {
     (debouncerState) => ({ isPending: debouncerState.isPending }),
   );
   const effectivePathQuery = pathTriggerQuery.length > 0 ? debouncedPathQuery : "";
-  const gitStatusQuery = useQuery(gitStatusQueryOptions(gitCwd));
+  const gitStatusQuery = useGitStatus(gitCwd);
   const keybindings = useServerKeybindings();
   const availableEditors = useServerAvailableEditors();
   const modelOptionsByProvider = useMemo(

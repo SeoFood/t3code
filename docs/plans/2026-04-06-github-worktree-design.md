@@ -7,6 +7,7 @@ Create worktree-based threads directly from GitHub Issues and Pull Requests, giv
 A GitHub icon button next to the "+" (new thread) button on each project in the sidebar. Clicking opens a popover with two tabs: **Issues** and **Pull Requests**.
 
 Each tab shows a list of open items for the project's GitHub repo:
+
 - Number (#123)
 - Title
 - Labels (small badges)

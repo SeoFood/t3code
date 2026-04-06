@@ -13,6 +13,7 @@
 ### Task 1: Add GitHub Issue/PR Schemas to Contracts
 
 **Files:**
+
 - Modify: `packages/contracts/src/git.ts`
 - Modify: `packages/contracts/src/rpc.ts`
 
@@ -128,6 +129,7 @@ git commit -m "feat: add GitHub issue/PR listing and issue thread schemas"
 ### Task 2: Add GitHub CLI Methods for Listing Issues/PRs
 
 **Files:**
+
 - Modify: `apps/server/src/git/Services/GitHubCli.ts`
 - Modify: `apps/server/src/git/Layers/GitHubCli.ts`
 
@@ -219,6 +221,7 @@ git commit -m "feat: add listOpenIssues and listAllOpenPullRequests to GitHubCli
 ### Task 3: Add prepareIssueThread to GitManager
 
 **Files:**
+
 - Modify: `apps/server/src/git/Services/GitManager.ts`
 - Modify: `apps/server/src/git/Layers/GitManager.ts`
 
@@ -260,6 +263,7 @@ git commit -m "feat: add prepareIssueThread to GitManager"
 ### Task 4: Wire RPC Endpoints
 
 **Files:**
+
 - Modify: `apps/server/src/ws.ts`
 - Modify: `apps/web/src/wsRpcClient.ts`
 - Modify: `apps/web/src/wsNativeApi.ts`
@@ -327,6 +331,7 @@ git commit -m "feat: wire GitHub list and prepareIssueThread RPC endpoints"
 ### Task 5: GitHub Popover UI in Sidebar
 
 **Files:**
+
 - Create: `apps/web/src/components/GitHubItemsPopover.tsx`
 - Modify: `apps/web/src/components/Sidebar.tsx`
 
@@ -353,12 +358,14 @@ The button should only be visible when the project has a valid cwd (it's a real 
 **Step 3: Handle item selection**
 
 When an issue is selected:
+
 1. Call `prepareIssueThread` with the project cwd and issue details
 2. Create a new thread via orchestration with the returned worktree path
 3. Set the first message to the issue title + body
 4. Navigate to the new thread
 
 When a PR is selected:
+
 1. Call the existing `preparePullRequestThread` with mode "worktree"
 2. Create a new thread with the returned worktree path
 3. Set the first message to the PR title + body

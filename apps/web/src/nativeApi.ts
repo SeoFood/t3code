@@ -46,7 +46,7 @@ export async function dispatchCommandToServer(
   }
 }
 
-export function __resetNativeApiForTests() {
+export async function __resetNativeApiForTests() {
   cachedApi = undefined;
-  __resetWsNativeApiForTests();
+  await __resetWsNativeApiForTests();
 }
