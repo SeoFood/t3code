@@ -1708,32 +1708,17 @@ export default function Sidebar() {
               });
             }}
           >
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <SidebarMenuAction
-                    render={
-                      <button
-                        type="button"
-                        aria-label={`GitHub issues and PRs for ${project.name}`}
-                      />
-                    }
-                    showOnHover
-                    className="top-1 right-8 size-5 rounded-md p-0 text-muted-foreground/70 hover:bg-secondary hover:text-foreground"
-                    onPointerDown={(event) => {
-                      event.preventDefault();
-                      event.stopPropagation();
-                      setGithubPopoverProjectId(
-                        githubPopoverProjectId === project.id ? null : project.id,
-                      );
-                    }}
-                  >
-                    <GitPullRequestIcon className="size-3.5" />
-                  </SidebarMenuAction>
-                }
-              />
-              <TooltipPopup side="top">GitHub issues & PRs</TooltipPopup>
-            </Tooltip>
+            <button
+              type="button"
+              className="absolute top-1 right-8 flex size-5 items-center justify-center rounded-md p-0 text-muted-foreground/50 opacity-0 transition-opacity hover:bg-secondary hover:text-foreground group-hover/project-header:opacity-100"
+              aria-label={`GitHub issues and PRs for ${project.name}`}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+              }}
+            >
+              <GitPullRequestIcon className="size-3.5" />
+            </button>
           </GitHubItemsPopover>
           <Tooltip>
             <TooltipTrigger
