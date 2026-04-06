@@ -4,7 +4,6 @@ import {
   EventId,
   type OrchestrationCommand,
   type GitActionProgressEvent,
-  GitHubCliError,
   type GitManagerServiceError,
   OrchestrationDispatchCommandError,
   type OrchestrationEvent,
@@ -28,6 +27,7 @@ import { RpcSerialization, RpcServer } from "effect/unstable/rpc";
 import { CheckpointDiffQuery } from "./checkpointing/Services/CheckpointDiffQuery";
 import { ServerConfig } from "./config";
 import { GitCore } from "./git/Services/GitCore";
+import { GitHubCli } from "./git/Services/GitHubCli";
 import { GitManager } from "./git/Services/GitManager";
 import { Keybindings } from "./keybindings";
 import { Open, resolveAvailableEditors } from "./open";
@@ -59,6 +59,7 @@ const WsRpcLayer = WsRpcGroup.toLayer(
     const open = yield* Open;
     const gitManager = yield* GitManager;
     const git = yield* GitCore;
+    const gitHubCli = yield* GitHubCli;
     const terminalManager = yield* TerminalManager;
     const providerRegistry = yield* ProviderRegistry;
     const config = yield* ServerConfig;
@@ -631,28 +632,24 @@ const WsRpcLayer = WsRpcGroup.toLayer(
         }),
       [WS_METHODS.gitInit]: (input) =>
         observeRpcEffect(WS_METHODS.gitInit, git.initRepo(input), { "rpc.aggregate": "git" }),
-      [WS_METHODS.githubListIssues]: (_input) =>
+      [WS_METHODS.githubListIssues]: (input) =>
         observeRpcEffect(
           WS_METHODS.githubListIssues,
-          Effect.fail(new GitHubCliError({ operation: "listIssues", detail: "Not implemented" })),
+          gitHubCli.listOpenIssues({ cwd: input.cwd }).pipe(Effect.map((issues) => ({ issues }))),
           { "rpc.aggregate": "git" },
         ),
-      [WS_METHODS.githubListPullRequests]: (_input) =>
+      [WS_METHODS.githubListPullRequests]: (input) =>
         observeRpcEffect(
           WS_METHODS.githubListPullRequests,
-          Effect.fail(
-            new GitHubCliError({ operation: "listPullRequests", detail: "Not implemented" }),
-          ),
+          gitHubCli
+            .listAllOpenPullRequests({ cwd: input.cwd })
+            .pipe(Effect.map((pullRequests) => ({ pullRequests }))),
           { "rpc.aggregate": "git" },
         ),
-      [WS_METHODS.gitPrepareIssueThread]: (_input) =>
-        observeRpcEffect(
-          WS_METHODS.gitPrepareIssueThread,
-          Effect.fail(
-            new GitHubCliError({ operation: "prepareIssueThread", detail: "Not implemented" }),
-          ),
-          { "rpc.aggregate": "git" },
-        ),
+      [WS_METHODS.gitPrepareIssueThread]: (input) =>
+        observeRpcEffect(WS_METHODS.gitPrepareIssueThread, gitManager.prepareIssueThread(input), {
+          "rpc.aggregate": "git",
+        }),
       [WS_METHODS.terminalOpen]: (input) =>
         observeRpcEffect(WS_METHODS.terminalOpen, terminalManager.open(input), {
           "rpc.aggregate": "terminal",

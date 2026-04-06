@@ -43,6 +43,7 @@ import {
   type CheckpointDiffQueryShape,
 } from "./checkpointing/Services/CheckpointDiffQuery.ts";
 import { GitCore, type GitCoreShape } from "./git/Services/GitCore.ts";
+import { GitHubCli, type GitHubCliShape } from "./git/Services/GitHubCli.ts";
 import { GitManager, type GitManagerShape } from "./git/Services/GitManager.ts";
 import { Keybindings, type KeybindingsShape } from "./keybindings.ts";
 import { Open, type OpenShape } from "./open.ts";
@@ -252,6 +253,7 @@ const buildAppUnderTest = (options?: {
     serverSettings?: Partial<ServerSettingsShape>;
     open?: Partial<OpenShape>;
     gitCore?: Partial<GitCoreShape>;
+    gitHubCli?: Partial<GitHubCliShape>;
     gitManager?: Partial<GitManagerShape>;
     projectSetupScriptRunner?: Partial<ProjectSetupScriptRunnerShape>;
     spotlightSync?: Partial<SpotlightSyncShape>;
@@ -333,6 +335,11 @@ const buildAppUnderTest = (options?: {
       Layer.provide(
         Layer.mock(GitCore)({
           ...options?.layers?.gitCore,
+        }),
+      ),
+      Layer.provide(
+        Layer.mock(GitHubCli)({
+          ...options?.layers?.gitHubCli,
         }),
       ),
       Layer.provide(
