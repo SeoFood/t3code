@@ -48,6 +48,7 @@ import { collectActiveTerminalThreadIds } from "../lib/terminalStateCleanup";
 import { deriveOrchestrationBatchEffects } from "../orchestrationEventEffects";
 import { createOrchestrationRecoveryCoordinator } from "../orchestrationRecovery";
 import { deriveReplayRetryDecision } from "../orchestrationRecovery";
+import { applySpotlightEvent } from "../rpc/spotlightState";
 import { getWsRpcClient } from "~/wsRpcClient";
 
 export const Route = createRootRouteWithContext<{
@@ -561,6 +562,9 @@ function EventRouter() {
       }
       applyTerminalEvent(event);
     });
+    const unsubSpotlightEvent = getWsRpcClient().spotlight.onEvent((event) => {
+      applySpotlightEvent(event);
+    });
     return () => {
       disposed = true;
       disposedRef.current = true;
@@ -570,6 +574,7 @@ function EventRouter() {
       queryInvalidationThrottler.cancel();
       unsubDomainEvent();
       unsubTerminalEvent();
+      unsubSpotlightEvent();
     };
   }, [
     applyOrchestrationEvents,

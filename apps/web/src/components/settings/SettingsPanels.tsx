@@ -469,6 +469,9 @@ export function useSettingsRestore(onRestored?: () => void) {
       ...(settings.enableAssistantStreaming !== DEFAULT_UNIFIED_SETTINGS.enableAssistantStreaming
         ? ["Assistant output"]
         : []),
+      ...(settings.enableSpotlight !== DEFAULT_UNIFIED_SETTINGS.enableSpotlight
+        ? ["Spotlight sync"]
+        : []),
       ...(settings.defaultThreadEnvMode !== DEFAULT_UNIFIED_SETTINGS.defaultThreadEnvMode
         ? ["New thread mode"]
         : []),
@@ -489,6 +492,7 @@ export function useSettingsRestore(onRestored?: () => void) {
       settings.defaultThreadEnvMode,
       settings.diffWordWrap,
       settings.enableAssistantStreaming,
+      settings.enableSpotlight,
       settings.timestampFormat,
       theme,
     ],
@@ -901,6 +905,30 @@ export function GeneralSettingsPanel() {
                 updateSettings({ enableAssistantStreaming: Boolean(checked) })
               }
               aria-label="Stream assistant messages"
+            />
+          }
+        />
+
+        <SettingsRow
+          title="Spotlight sync (experimental)"
+          description="Enable one-way file sync from worktree threads to the repo root, allowing hot-reload in Xcode, dev servers, and other tools."
+          resetAction={
+            settings.enableSpotlight !== DEFAULT_UNIFIED_SETTINGS.enableSpotlight ? (
+              <SettingResetButton
+                label="spotlight sync"
+                onClick={() =>
+                  updateSettings({
+                    enableSpotlight: DEFAULT_UNIFIED_SETTINGS.enableSpotlight,
+                  })
+                }
+              />
+            ) : null
+          }
+          control={
+            <Switch
+              checked={settings.enableSpotlight}
+              onCheckedChange={(checked) => updateSettings({ enableSpotlight: Boolean(checked) })}
+              aria-label="Enable spotlight sync"
             />
           }
         />

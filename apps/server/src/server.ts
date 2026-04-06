@@ -13,7 +13,6 @@ import { websocketRpcRouteLayer } from "./ws";
 import { OpenLive } from "./open";
 import { layerConfig as SqlitePersistenceLayerLive } from "./persistence/Layers/Sqlite";
 import { ServerLifecycleEventsLive } from "./serverLifecycleEvents";
-import { AnalyticsServiceLayerLive } from "./telemetry/Layers/AnalyticsService";
 import { makeEventNdjsonLogger } from "./provider/Layers/EventNdjsonLogger";
 import { ProviderSessionDirectoryLive } from "./provider/Layers/ProviderSessionDirectory";
 import { ProviderSessionRuntimeRepositoryLive } from "./persistence/Layers/ProviderSessionRuntime";
@@ -43,6 +42,7 @@ import { CheckpointReactorLive } from "./orchestration/Layers/CheckpointReactor"
 import { ProviderRegistryLive } from "./provider/Layers/ProviderRegistry";
 import { ServerSettingsLive } from "./serverSettings";
 import { ProjectFaviconResolverLive } from "./project/Layers/ProjectFaviconResolver";
+import { SpotlightSyncLive } from "./spotlight/Layers/SpotlightSync";
 import { WorkspaceEntriesLive } from "./workspace/Layers/WorkspaceEntries";
 import { WorkspaceFileSystemLive } from "./workspace/Layers/WorkspaceFileSystem";
 import { WorkspacePathsLive } from "./workspace/Layers/WorkspacePaths";
@@ -197,9 +197,16 @@ const RuntimeDependenciesLive = ReactorLayerLive.pipe(
   Layer.provideMerge(ServerSettingsLive),
   Layer.provideMerge(WorkspaceLayerLive),
   Layer.provideMerge(ProjectFaviconResolverLive),
+  Layer.provideMerge(
+    SpotlightSyncLive.pipe(
+      Layer.provide(OrchestrationProjectionSnapshotQueryLive),
+      Layer.provide(GitCoreLive),
+      Layer.provide(ServerSettingsLive),
+      Layer.provide(SqlitePersistenceLayerLive),
+    ),
+  ),
 
   // Misc.
-  Layer.provideMerge(AnalyticsServiceLayerLive),
   Layer.provideMerge(OpenLive),
   Layer.provideMerge(ServerLifecycleEventsLive),
 );

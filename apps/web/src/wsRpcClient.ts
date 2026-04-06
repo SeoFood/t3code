@@ -91,6 +91,12 @@ export interface WsRpcClient {
     readonly subscribeConfig: RpcStreamMethod<typeof WS_METHODS.subscribeServerConfig>;
     readonly subscribeLifecycle: RpcStreamMethod<typeof WS_METHODS.subscribeServerLifecycle>;
   };
+  readonly spotlight: {
+    readonly enable: RpcUnaryMethod<typeof WS_METHODS.spotlightEnable>;
+    readonly disable: RpcUnaryMethod<typeof WS_METHODS.spotlightDisable>;
+    readonly getStatus: RpcUnaryMethod<typeof WS_METHODS.spotlightGetStatus>;
+    readonly onEvent: RpcStreamMethod<typeof WS_METHODS.subscribeSpotlightEvents>;
+  };
   readonly orchestration: {
     readonly getSnapshot: RpcUnaryNoArgMethod<typeof ORCHESTRATION_WS_METHODS.getSnapshot>;
     readonly dispatchCommand: RpcUnaryMethod<typeof ORCHESTRATION_WS_METHODS.dispatchCommand>;
@@ -202,6 +208,18 @@ export function createWsRpcClient(transport = new WsTransport()): WsRpcClient {
       subscribeLifecycle: (listener, options) =>
         transport.subscribe(
           (client) => client[WS_METHODS.subscribeServerLifecycle]({}),
+          listener,
+          options,
+        ),
+    },
+    spotlight: {
+      enable: (input) => transport.request((client) => client[WS_METHODS.spotlightEnable](input)),
+      disable: (input) => transport.request((client) => client[WS_METHODS.spotlightDisable](input)),
+      getStatus: (input) =>
+        transport.request((client) => client[WS_METHODS.spotlightGetStatus](input)),
+      onEvent: (listener, options) =>
+        transport.subscribe(
+          (client) => client[WS_METHODS.subscribeSpotlightEvents]({}),
           listener,
           options,
         ),

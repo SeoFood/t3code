@@ -78,6 +78,7 @@ export const ObservabilitySettings = Schema.Struct({
 export type ObservabilitySettings = typeof ObservabilitySettings.Type;
 
 export const ServerSettings = Schema.Struct({
+  enableSpotlight: Schema.Boolean.pipe(Schema.withDecodingDefault(() => false)),
   enableAssistantStreaming: Schema.Boolean.pipe(Schema.withDecodingDefault(() => false)),
   defaultThreadEnvMode: ThreadEnvMode.pipe(
     Schema.withDecodingDefault(() => "local" as const satisfies ThreadEnvMode),
@@ -162,6 +163,7 @@ const ClaudeSettingsPatch = Schema.Struct({
 });
 
 export const ServerSettingsPatch = Schema.Struct({
+  enableSpotlight: Schema.optionalKey(Schema.Boolean),
   enableAssistantStreaming: Schema.optionalKey(Schema.Boolean),
   defaultThreadEnvMode: Schema.optionalKey(ThreadEnvMode),
   textGenerationModelSelection: Schema.optionalKey(ModelSelectionPatch),
