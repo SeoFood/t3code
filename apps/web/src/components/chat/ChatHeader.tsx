@@ -6,7 +6,7 @@ import {
 } from "@t3tools/contracts";
 import { memo } from "react";
 import GitActionsControl from "../GitActionsControl";
-import { DiffIcon, SunIcon, TerminalSquareIcon } from "lucide-react";
+import { DiffIcon, LightbulbIcon, TerminalSquareIcon } from "lucide-react";
 import { Badge } from "../ui/badge";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import ProjectScriptsControl, { type NewProjectScriptInput } from "../ProjectScriptsControl";
@@ -120,7 +120,7 @@ export const ChatHeader = memo(function ChatHeader({
                   variant="outline"
                   size="xs"
                 >
-                  <SunIcon className="size-3" />
+                  <LightbulbIcon className="size-3" />
                 </Toggle>
               }
             />

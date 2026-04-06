@@ -1,5 +1,4 @@
-import { watch, type FSWatcher } from "node:fs";
-import { existsSync } from "node:fs";
+import { cpSync, readdirSync, rmSync, statSync, watch, type FSWatcher } from "node:fs";
 import path from "node:path";
 
 import {
@@ -49,79 +48,43 @@ const makeSpotlightSync = Effect.gen(function* () {
       }
     });
 
-  const isRebaseOrMergeActive = (repoRoot: string): boolean => {
-    const gitDir = path.join(repoRoot, ".git");
-    return (
-      existsSync(path.join(gitDir, "rebase-merge")) ||
-      existsSync(path.join(gitDir, "rebase-apply")) ||
-      existsSync(path.join(gitDir, "MERGE_HEAD"))
-    );
+  /**
+   * Sync files from worktree to repo root using native Node.js fs.
+   * Mirrors the worktree contents into the repo root, skipping .git directories.
+   * Deletes files in dest that don't exist in src (like rsync --delete).
+   */
+  const syncFiles = (src: string, dest: string): void => {
+    const srcEntries = new Set(readdirSync(src).filter((name) => name !== ".git"));
+    // Remove files in dest that are not in src (excluding .git)
+    for (const name of readdirSync(dest)) {
+      if (name === ".git") continue;
+      if (!srcEntries.has(name)) {
+        rmSync(path.join(dest, name), { recursive: true, force: true });
+      }
+    }
+    // Copy src to dest
+    for (const name of srcEntries) {
+      const srcPath = path.join(src, name);
+      const destPath = path.join(dest, name);
+      const stat = statSync(srcPath);
+      if (stat.isDirectory()) {
+        cpSync(srcPath, destPath, { recursive: true, force: true });
+      } else {
+        cpSync(srcPath, destPath, { force: true });
+      }
+    }
   };
 
   const syncWorktreeToRoot = (session: SpotlightSession): Effect.Effect<void> =>
     Effect.gen(function* () {
-      if (isRebaseOrMergeActive(session.repoRootCwd)) {
-        yield* publishEvent({
-          threadId: session.threadId,
-          type: "error",
-          detail: "Sync skipped: rebase or merge in progress in repo root",
-          timestamp: nowIso(),
-        });
-        return;
-      }
-
-      // Stage and commit in worktree
-      yield* gitCore
-        .execute({
-          operation: "spotlight-stage",
-          cwd: session.worktreePath,
-          args: ["add", "-A"],
-        })
-        .pipe(Effect.ignore);
-
-      yield* gitCore
-        .execute({
-          operation: "spotlight-commit",
-          cwd: session.worktreePath,
-          args: ["commit", "--allow-empty", "-m", `spotlight: checkpoint ${nowIso()}`],
-        })
-        .pipe(Effect.ignore);
-
-      // Get the worktree branch name
-      const branchResult = yield* gitCore.execute({
-        operation: "spotlight-branch",
-        cwd: session.worktreePath,
-        args: ["rev-parse", "--abbrev-ref", "HEAD"],
+      yield* Effect.try({
+        try: () => syncFiles(session.worktreePath, session.repoRootCwd),
+        catch: (error) =>
+          new SpotlightError({
+            operation: "sync",
+            detail: error instanceof Error ? error.message : String(error),
+          }),
       });
-      const branch = branchResult.stdout.trim();
-
-      if (!branch) {
-        yield* publishEvent({
-          threadId: session.threadId,
-          type: "error",
-          detail: "Could not determine worktree branch",
-          timestamp: nowIso(),
-        });
-        return;
-      }
-
-      // Checkout the worktree branch in repo root
-      yield* gitCore
-        .execute({
-          operation: "spotlight-checkout",
-          cwd: session.repoRootCwd,
-          args: ["checkout", branch],
-        })
-        .pipe(
-          Effect.catch(() =>
-            publishEvent({
-              threadId: session.threadId,
-              type: "error",
-              detail: "Failed to checkout in repo root",
-              timestamp: nowIso(),
-            }),
-          ),
-        );
 
       session.lastSyncedAt = nowIso();
 
@@ -172,16 +135,28 @@ const makeSpotlightSync = Effect.gen(function* () {
         session.watcher = null;
       }
 
-      // Restore original ref in repo root
+      // Restore repo root to its own branch state
       yield* gitCore
         .execute({
           operation: "spotlight-restore",
           cwd: session.repoRootCwd,
-          args: ["checkout", session.originalRef],
+          args: ["checkout", "."],
         })
         .pipe(
           Effect.catch(() =>
             Effect.logWarning("Failed to restore repo root after spotlight disable"),
+          ),
+        );
+      // Clean untracked files that were synced from the worktree
+      yield* gitCore
+        .execute({
+          operation: "spotlight-clean",
+          cwd: session.repoRootCwd,
+          args: ["clean", "-fd", "--exclude=.git"],
+        })
+        .pipe(
+          Effect.catch(() =>
+            Effect.logWarning("Failed to clean untracked files after spotlight disable"),
           ),
         );
 
